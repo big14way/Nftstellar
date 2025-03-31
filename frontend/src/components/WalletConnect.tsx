@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { connectWallet, isFreighterInstalled, isWalletConnected } from '../sdk/walletConnect';
+import { connectWallet, disconnectWallet, isFreighterInstalled, isWalletConnected } from '../sdk/walletConnect';
 import { useAppContext } from '../providers/AppContext';
 import styles from '../styles/WalletConnect.module.css';
 
@@ -82,11 +82,22 @@ const WalletConnect = () => {
       // If we're already connected, disconnect
       if (isConnected) {
         console.log('Disconnecting wallet');
-        dispatch({
-          type: 'SET_WALLET_CONNECTION',
-          payload: { isConnected: false, walletKey: null }
-        });
-        localStorage.removeItem('walletConnected');
+        try {
+          const disconnected = await disconnectWallet();
+          console.log('Disconnect result:', disconnected);
+          if (disconnected) {
+            dispatch({
+              type: 'SET_WALLET_CONNECTION',
+              payload: { isConnected: false, walletKey: null }
+            });
+            console.log('Wallet disconnected successfully');
+          } else {
+            setError('Failed to disconnect wallet');
+          }
+        } catch (disconnectError) {
+          console.error('Error disconnecting wallet:', disconnectError);
+          setError(`Disconnect error: ${disconnectError.message || 'Unknown error'}`);
+        }
         return;
       }
 

@@ -281,6 +281,46 @@ export const signWithWallet = async (xdr: string, networkPassphrase: string): Pr
   }
 };
 
+/**
+ * Disconnect from the Freighter wallet
+ */
+export const disconnectWallet = async (): Promise<boolean> => {
+  try {
+    console.log('Attempting to disconnect from wallet...');
+    
+    // Remove the connection from localStorage
+    localStorage.removeItem('walletConnected');
+    
+    // Try to use Freighter's disconnect function if available
+    if (typeof freighter.disconnect === 'function') {
+      console.log('Calling Freighter disconnect API...');
+      await freighter.disconnect();
+      console.log('Successfully called disconnect API');
+    } else {
+      console.log('Freighter disconnect API not available, falling back to manual disconnect');
+      
+      // Try direct window access
+      if (typeof window !== 'undefined' && window.freighter) {
+        try {
+          // @ts-ignore
+          if (typeof window.freighter.disconnect === 'function') {
+            // @ts-ignore
+            await window.freighter.disconnect();
+            console.log('Successfully called window.freighter.disconnect');
+          }
+        } catch (e) {
+          console.warn('Error calling window.freighter.disconnect:', e);
+        }
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error disconnecting wallet:', error);
+    return false;
+  }
+};
+
 // Add a type declaration for window.freighter
 declare global {
   interface Window {
@@ -292,6 +332,7 @@ declare global {
         xdr: string,
         options?: { networkPassphrase?: string }
       ) => Promise<{ signedTxXdr: string }>;
+      disconnect: () => Promise<void>;
     };
   }
 } 

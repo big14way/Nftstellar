@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState } from 'react';
-import { isWalletConnected, getPublicKey } from '../sdk/walletConnect';
+import { isWalletConnected, getPublicKey, disconnectWallet } from '../sdk/walletConnect';
 
 // Define the state type
 interface AppState {
@@ -32,6 +32,12 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
     case 'SET_WALLET_CONNECTION':
       console.log('SET_WALLET_CONNECTION payload:', action.payload);
+      if (state.isConnected && !action.payload.isConnected) {
+        console.log('Disconnecting wallet from reducer');
+        disconnectWallet().catch(err => {
+          console.error('Error in disconnect:', err);
+        });
+      }
       return {
         ...state,
         isConnected: action.payload.isConnected,
