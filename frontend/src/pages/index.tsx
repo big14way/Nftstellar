@@ -1,83 +1,76 @@
-import { useState, useEffect } from 'react';
-import { useAppContext } from '../providers/AppContext';
-import Layout from '../components/Layout';
+import { useEffect, useState } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
-import styles from '../styles/Home.module.css';
+import { useWallet } from '@/contexts/WalletContext';
+import styles from '@/styles/Home.module.css';
 
-const HomePage = () => {
-  const { state } = useAppContext();
-  const { isConnected } = state;
-  const [isClientSide, setIsClientSide] = useState(false);
-  
+export default function Home() {
+  const { isConnected, connect } = useWallet();
+  const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
-    setIsClientSide(true);
+    setIsClient(true);
   }, []);
-  
-  if (!isClientSide) {
-    return null; // Avoid rendering on server to prevent hydration issues
-  }
-  
-  return (
-    <Layout>
-      <div className={styles.container}>
-        <div className={styles.hero}>
-          <div className={styles.heroContent}>
-            <h1 className={styles.heroTitle}>
-              Discover, Collect, and Sell Stellar NFTs
-            </h1>
-            <p className={styles.heroSubtitle}>
-              The premier NFT marketplace on the Stellar blockchain
-            </p>
-            <div className={styles.ctaButtons}>
-              <Link href="/browse" className={styles.primaryButton}>
-                Explore NFTs
-              </Link>
-              {isConnected ? (
-                <Link href="/create" className={styles.secondaryButton}>
-                  Create NFT
-                </Link>
-              ) : (
-                <button className={`${styles.secondaryButton} ${styles.disabledButton}`} disabled>
-                  Connect Wallet to Create
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className={styles.features}>
-          <div className={styles.featuresTitle}>
-            <h2>Why Choose Stellar NFT Marketplace?</h2>
-          </div>
-          <div className={styles.featureCards}>
-            <div className={styles.featureCard}>
-              <div className={styles.featureIcon}>💰</div>
-              <h3>Low Fees</h3>
-              <p>Benefit from Stellar's low transaction costs and fast confirmation times.</p>
-            </div>
-            <div className={styles.featureCard}>
-              <div className={styles.featureIcon}>🔒</div>
-              <h3>Secure</h3>
-              <p>Assets secured by blockchain technology and smart contracts.</p>
-            </div>
-            <div className={styles.featureCard}>
-              <div className={styles.featureIcon}>🌐</div>
-              <h3>Global</h3>
-              <p>Connect with creators and collectors from around the world.</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className={styles.getStarted}>
-          <h2>Ready to Get Started?</h2>
-          <p>Connect your Freighter wallet and start exploring the world of Stellar NFTs.</p>
-          <Link href={isConnected ? "/my-nfts" : "/browse"} className={styles.primaryButton}>
-            {isConnected ? "View My NFTs" : "Browse Marketplace"}
-          </Link>
-        </div>
-      </div>
-    </Layout>
-  );
-};
 
-export default HomePage; 
+  if (!isClient) {
+    return null; // or a loading spinner
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Stellar NFT Marketplace</title>
+        <meta name="description" content="Create, buy, and sell NFTs on the Stellar blockchain" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <main className={styles.main}>
+        <div className={styles.hero}>
+          <h1>Welcome to Stellar NFT Marketplace</h1>
+          <p>Create, collect, and trade unique digital assets on the Stellar blockchain</p>
+          
+          {!isConnected ? (
+            <button onClick={connect} className={styles.connectButton}>
+              Connect Wallet to Start
+            </button>
+          ) : (
+            <div className={styles.actions}>
+              <Link href="/browse" className={styles.actionButton}>
+                Browse NFTs
+              </Link>
+              <Link href="/create" className={styles.actionButton}>
+                Create NFT
+              </Link>
+              <Link href="/my-nfts" className={styles.actionButton}>
+                My NFTs
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <section className={styles.features}>
+          <h2>Why Choose Stellar NFT Marketplace?</h2>
+          <div className={styles.featureGrid}>
+            <div className={styles.feature}>
+              <h3>Low Fees</h3>
+              <p>Benefit from Stellar's minimal transaction costs</p>
+            </div>
+            <div className={styles.feature}>
+              <h3>Fast Transactions</h3>
+              <p>Experience near-instant NFT transfers</p>
+            </div>
+            <div className={styles.feature}>
+              <h3>Eco-Friendly</h3>
+              <p>Stellar's efficient consensus mechanism minimizes environmental impact</p>
+            </div>
+            <div className={styles.feature}>
+              <h3>User-Friendly</h3>
+              <p>Simple and intuitive interface for creators and collectors</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </>
+  );
+} 

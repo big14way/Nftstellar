@@ -1,82 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import WalletConnect from './WalletConnect';
-import { useAppContext } from '../providers/AppContext';
-import styles from '../styles/Navigation.module.css';
+import styles from '@/styles/Navigation.module.css';
+import { FaHome, FaStore, FaPlus, FaUserCircle } from 'react-icons/fa';
+import { useAppContext } from '@/providers/AppContext';
 
-const Navigation: React.FC = () => {
+const Navigation = () => {
   const router = useRouter();
-  const { state } = useAppContext();
-  const [isClient, setIsClient] = useState(false);
-  
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-  const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/browse', label: 'Browse NFTs' },
+  const { isWalletConnected, walletAddress, disconnectWallet } = useAppContext();
+
+  const links = [
+    { href: '/', label: 'Home', icon: <FaHome /> },
+    { href: '/browse', label: 'Browse NFTs', icon: <FaStore /> },
+    { href: '/create', label: 'Create NFT', icon: <FaPlus /> },
+    { href: '/my-nfts', label: 'My NFTs', icon: <FaUserCircle /> },
   ];
-  
-  const authLinks = [
-    { href: '/create', label: 'Create NFT' },
-    { href: '/my-nfts', label: 'My NFTs' },
-  ];
-  
-  const devLinks = [
-    { href: '/wallet-demo', label: 'Wallet Demo' }
-  ];
-  
+
   return (
-    <header className={styles.header}>
-      <div className={styles.container}>
-        <Link href="/" className={styles.logo}>
-          Stellar NFT Marketplace
-        </Link>
-        
-        <nav className={styles.nav}>
-          <ul className={styles.navList}>
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link 
-                  href={link.href}
-                  className={`${styles.navLink} ${router.pathname === link.href ? styles.active : ''}`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            
-            {isClient && state.isConnected && authLinks.map((link) => (
-              <li key={link.href}>
-                <Link 
-                  href={link.href}
-                  className={`${styles.navLink} ${router.pathname === link.href ? styles.active : ''}`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            
-            {devLinks.map((link) => (
-              <li key={link.href}>
-                <Link 
-                  href={link.href}
-                  className={`${styles.navLink} ${router.pathname === link.href ? styles.active : ''}`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        
-        <div className={styles.wallet}>
-          <WalletConnect />
-        </div>
+    <nav className={styles.navigation}>
+      <div className={styles.navLinks}>
+        {links.map(({ href, label, icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`${styles.navLink} ${
+              router.pathname === href ? styles.active : ''
+            }`}
+          >
+            <span className={styles.icon}>{icon}</span>
+            {label}
+          </Link>
+        ))}
       </div>
-    </header>
+      {isWalletConnected && (
+        <div className={styles.walletInfo}>
+          <span className={styles.address}>
+            {walletAddress?.slice(0, 8)}...{walletAddress?.slice(-8)}
+          </span>
+          <button onClick={disconnectWallet} className={styles.disconnectButton}>
+            Disconnect
+          </button>
+        </div>
+      )}
+    </nav>
   );
 };
 
