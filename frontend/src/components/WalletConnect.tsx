@@ -11,6 +11,7 @@ const WalletConnect = () => {
   const [isChecking, setIsChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isClientSide, setIsClientSide] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   // Check if we're on client side
   useEffect(() => {
@@ -28,20 +29,43 @@ const WalletConnect = () => {
         console.log('🔍 Freighter installed check result:', installed);
         setHasFreighter(installed);
         
-        // If installed, check if already connected
+        // If installed, check if already connected but only based on local state
         if (installed) {
-          const connected = await isWalletConnected();
-          console.log('🔍 Freighter connection check result:', connected);
+          // Check localStorage first to avoid popups
+          const storedConnection = localStorage.getItem('walletConnected');
+          console.log('walletConnected in localStorage:', storedConnection);
+          setDebugInfo(`localStorage connection: ${storedConnection || 'none'}`);
           
-          if (connected && !isConnected) {
-            console.log("Wallet is connected but app state doesn't reflect it. Updating state...");
-            const result = await connectWallet();
-            if (result) {
+          // Only check via API if localStorage indicates we're connected
+          // This prevents unwanted popups
+          if (storedConnection === 'true') {
+            const connected = await isWalletConnected(false); // not user initiated
+            console.log('🔍 Freighter connection check result:', connected);
+            
+            if (connected && !isConnected) {
+              console.log("Wallet is connected but app state doesn't reflect it. Updating state...");
+              const result = await connectWallet();
+              if (result) {
+                dispatch({
+                  type: 'SET_WALLET_CONNECTION',
+                  payload: { isConnected: true, walletKey: result }
+                });
+              }
+            } else if (!connected && isConnected) {
+              // If wallet reports as disconnected but our state thinks it's connected, fix that
+              console.log("Wallet is disconnected but app state shows connected. Fixing state...");
               dispatch({
                 type: 'SET_WALLET_CONNECTION',
-                payload: { isConnected: true, walletKey: result }
+                payload: { isConnected: false, walletKey: null }
               });
             }
+          } else if (isConnected) {
+            // If localStorage says we're not connected but state says we are, fix the state
+            console.log("State shows connected but localStorage doesn't. Fixing state...");
+            dispatch({
+              type: 'SET_WALLET_CONNECTION',
+              payload: { isConnected: false, walletKey: null }
+            });
           }
         }
         
@@ -56,15 +80,75 @@ const WalletConnect = () => {
 
     checkFreighter();
 
-    // Re-check when window gains focus (in case user installs extension)
+    // Re-check when window gains focus only if we're already connected
+    // This prevents unwanted popups
     const handleFocus = () => {
-      console.log('Window focus event - checking Freighter status');
-      checkFreighter();
+      const storedConnection = localStorage.getItem('walletConnected');
+      if (storedConnection === 'true') {
+        console.log('Window focus event - checking Freighter status');
+        checkFreighter();
+      }
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [dispatch, isConnected, isClientSide]);
+
+  const handleConnectWallet = async () => {
+    try {
+      console.log('Connecting to wallet...');
+      dispatch({
+        type: 'SET_IS_CONNECTING',
+        payload: true
+      });
+
+      const publicKey = await connectWallet();
+      console.log('connectWallet result:', publicKey);
+      
+      if (publicKey) {
+        console.log('Wallet connected successfully with public key:', publicKey);
+        dispatch({
+          type: 'SET_WALLET_CONNECTION',
+          payload: { isConnected: true, walletKey: publicKey }
+        });
+      } else {
+        console.warn('Connect wallet returned null public key');
+        setError('Failed to connect wallet. Please try again.');
+      }
+    } catch (connectionError) {
+      console.error('Error in wallet connection:', connectionError);
+      setError(`Connection error: ${connectionError.message || 'Unknown error'}`);
+    } finally {
+      dispatch({
+        type: 'SET_IS_CONNECTING',
+        payload: false
+      });
+    }
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      console.log('Disconnecting wallet');
+      
+      // First update UI state to provide immediate feedback
+      dispatch({
+        type: 'SET_WALLET_CONNECTION',
+        payload: { isConnected: false, walletKey: null }
+      });
+      
+      // Then try the actual disconnect
+      const disconnected = await disconnectWallet();
+      console.log('Disconnect result:', disconnected);
+      
+      if (!disconnected) {
+        console.warn('Disconnect returned false');
+        setError('Warning: Disconnect may not have completed properly');
+      }
+    } catch (disconnectError) {
+      console.error('Error disconnecting wallet:', disconnectError);
+      setError(`Disconnect error: ${disconnectError.message || 'Unknown error'}`);
+    }
+  };
 
   const handleWalletClick = useCallback(async () => {
     if (!isClientSide) return;
@@ -81,58 +165,11 @@ const WalletConnect = () => {
 
       // If we're already connected, disconnect
       if (isConnected) {
-        console.log('Disconnecting wallet');
-        try {
-          const disconnected = await disconnectWallet();
-          console.log('Disconnect result:', disconnected);
-          if (disconnected) {
-            dispatch({
-              type: 'SET_WALLET_CONNECTION',
-              payload: { isConnected: false, walletKey: null }
-            });
-            console.log('Wallet disconnected successfully');
-          } else {
-            setError('Failed to disconnect wallet');
-          }
-        } catch (disconnectError) {
-          console.error('Error disconnecting wallet:', disconnectError);
-          setError(`Disconnect error: ${disconnectError.message || 'Unknown error'}`);
-        }
-        return;
+        await handleDisconnectWallet();
+      } else {
+        // Otherwise connect
+        await handleConnectWallet();
       }
-
-      // Start connection process
-      console.log('Connecting to wallet...');
-      dispatch({
-        type: 'SET_IS_CONNECTING',
-        payload: true
-      });
-
-      // Try to connect wallet with detailed logging
-      try {
-        console.log('Calling connectWallet()...');
-        const publicKey = await connectWallet();
-        console.log('connectWallet result:', publicKey);
-        
-        if (publicKey) {
-          console.log('Wallet connected successfully with public key:', publicKey);
-          dispatch({
-            type: 'SET_WALLET_CONNECTION',
-            payload: { isConnected: true, walletKey: publicKey }
-          });
-        } else {
-          console.warn('Connect wallet returned null public key');
-          setError('Failed to connect wallet. Please try again.');
-        }
-      } catch (connectionError) {
-        console.error('Error in wallet connection:', connectionError);
-        setError(`Connection error: ${connectionError.message || 'Unknown error'}`);
-      }
-      
-      dispatch({
-        type: 'SET_IS_CONNECTING',
-        payload: false
-      });
     } catch (err) {
       console.error('Error in handleWalletClick:', err);
       dispatch({
@@ -199,6 +236,7 @@ const WalletConnect = () => {
           <p>Freighter installed: {hasFreighter === null ? 'checking...' : hasFreighter ? 'yes' : 'no'}</p>
           <p>Wallet connected: {isConnected ? 'yes' : 'no'}</p>
           <p>Connection in progress: {isConnecting ? 'yes' : 'no'}</p>
+          {debugInfo && <p>Extra: {debugInfo}</p>}
         </div>
       )}
     </div>

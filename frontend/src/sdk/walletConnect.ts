@@ -40,8 +40,9 @@ export const isFreighterInstalled = async (): Promise<boolean> => {
 
 /**
  * Check if the user's wallet is connected
+ * @param userInitiated If true, this check was initiated by user action (clicking connect)
  */
-export const isWalletConnected = async (): Promise<boolean> => {
+export const isWalletConnected = async (userInitiated: boolean = false): Promise<boolean> => {
   try {
     // If not in browser or Freighter not installed, return false
     if (typeof window === 'undefined' || !await isFreighterInstalled()) {
@@ -52,25 +53,40 @@ export const isWalletConnected = async (): Promise<boolean> => {
     
     // 1. Use the API's isConnected function
     if (typeof freighter.isConnected === 'function') {
-      const result = await safeExecute(
-        async () => await freighter.isConnected(),
-        { isConnected: false }
-      );
-      console.log('isWalletConnected API result:', result);
-      
-      if (result && result.isConnected === true) {
-        return true;
+      // Only call isConnected API if explicitly initiated by user or if the app thinks we're already connected
+      // This prevents unwanted popups on page load
+      const storedConnection = localStorage.getItem('walletConnected');
+      if (userInitiated || storedConnection === 'true') {
+        const result = await safeExecute(
+          async () => await freighter.isConnected(),
+          { isConnected: false }
+        );
+        console.log('isWalletConnected API result:', result);
+        
+        if (result && result.isConnected === true) {
+          return true;
+        }
+      } else {
+        console.log('Skipping direct wallet check to avoid popup (not user initiated)');
       }
     }
     
-    // 2. Try to get the address as another way to check
-    try {
-      const addressResult = await getUserPublicKey();
-      const isConnected = !!addressResult;
-      console.log('isWalletConnected via address check:', isConnected);
-      return isConnected;
-    } catch (e) {
-      console.log('Error checking connection via address:', e);
+    // 2. Try to get the address as another way to check, but only if userInitiated
+    // or we already have a stored connection to avoid triggering wallet popup
+    const storedConnection = localStorage.getItem('walletConnected');
+    if (userInitiated || storedConnection === 'true') {
+      try {
+        const addressResult = await getUserPublicKey(userInitiated);
+        const isConnected = !!addressResult;
+        console.log('isWalletConnected via address check:', isConnected);
+        return isConnected;
+      } catch (e) {
+        console.log('Error checking connection via address:', e);
+      }
+    } else {
+      console.log('Skipping address check to avoid popup (not user initiated)');
+      // If not user initiated and no stored connection, assume not connected
+      return false;
     }
     
     // Default to false if nothing worked
@@ -129,7 +145,8 @@ export const connectWallet = async (): Promise<string | null> => {
     // Then try to get the public key using the API
     try {
       console.log('Getting address from Freighter API...');
-      const publicKey = await getUserPublicKey();
+      // Since this is a connect request, pass true for userInitiated
+      const publicKey = await getUserPublicKey(true);
       if (publicKey) {
         console.log('Connected to wallet with public key:', publicKey);
         localStorage.setItem('walletConnected', 'true');
@@ -150,9 +167,20 @@ export const connectWallet = async (): Promise<string | null> => {
 
 /**
  * Get the public key using the Freighter API directly
+ * @param userInitiated If true, this check was initiated by user action (clicking connect)
  */
-export const getUserPublicKey = async (): Promise<string | null> => {
+export const getUserPublicKey = async (userInitiated: boolean = false): Promise<string | null> => {
   try {
+    // First check localStorage to see if we already know connection status
+    // This prevents unwanted popups
+    const storedConnection = localStorage.getItem('walletConnected');
+    
+    // Only proceed with API calls if user initiated or we're already connected
+    if (!userInitiated && storedConnection !== 'true') {
+      console.log('Skipping public key fetch to avoid popup (not user initiated and no stored connection)');
+      return null;
+    }
+    
     // Try to use the getAddress function from the API
     if (typeof freighter.getAddress === 'function') {
       console.log('Calling getAddress...');
@@ -190,10 +218,11 @@ export const getUserPublicKey = async (): Promise<string | null> => {
 
 /**
  * Get the public key from the connected wallet
+ * @param userInitiated If true, this check was initiated by user action
  */
-export const getPublicKey = async (): Promise<string | null> => {
+export const getPublicKey = async (userInitiated: boolean = false): Promise<string | null> => {
   try {
-    return await getUserPublicKey();
+    return await getUserPublicKey(userInitiated);
   } catch (error) {
     console.error('Error getting public key:', error);
     return null;
@@ -288,36 +317,81 @@ export const disconnectWallet = async (): Promise<boolean> => {
   try {
     console.log('Attempting to disconnect from wallet...');
     
-    // Remove the connection from localStorage
+    // Clear any stored connection data - Freighter relies on this to know if your app is connected
     localStorage.removeItem('walletConnected');
     
-    // Try to use Freighter's disconnect function if available
-    if (typeof freighter.disconnect === 'function') {
-      console.log('Calling Freighter disconnect API...');
-      await freighter.disconnect();
-      console.log('Successfully called disconnect API');
-    } else {
-      console.log('Freighter disconnect API not available, falling back to manual disconnect');
-      
-      // Try direct window access
-      if (typeof window !== 'undefined' && window.freighter) {
-        try {
-          // @ts-ignore
-          if (typeof window.freighter.disconnect === 'function') {
-            // @ts-ignore
-            await window.freighter.disconnect();
-            console.log('Successfully called window.freighter.disconnect');
-          }
-        } catch (e) {
-          console.warn('Error calling window.freighter.disconnect:', e);
-        }
+    // Also clear any other wallet-related items in localStorage/sessionStorage
+    // that might be used by Freighter to track connection state
+    const localStorageKeys = Object.keys(localStorage);
+    for (const key of localStorageKeys) {
+      if (key.toLowerCase().includes('freighter') || 
+          key.toLowerCase().includes('wallet') ||
+          key.toLowerCase().includes('stellar')) {
+        console.log(`Removing localStorage item: ${key}`);
+        localStorage.removeItem(key);
       }
     }
     
+    // Do the same for sessionStorage
+    const sessionStorageKeys = Object.keys(sessionStorage);
+    for (const key of sessionStorageKeys) {
+      if (key.toLowerCase().includes('freighter') || 
+          key.toLowerCase().includes('wallet') ||
+          key.toLowerCase().includes('stellar')) {
+        console.log(`Removing sessionStorage item: ${key}`);
+        sessionStorage.removeItem(key);
+      }
+    }
+    
+    // Note: Freighter doesn't seem to have a proper disconnect API
+    // Most wallet connections in Freighter are maintained by the app's state
+    // For debugging, let's list what's available in the API
+    if (typeof window !== 'undefined') {
+      console.log('Available freighter API methods:', 
+        Object.keys(freighter).filter(key => typeof freighter[key] === 'function'));
+      
+      if (window.freighter) {
+        console.log('Available window.freighter methods:', 
+          Object.keys(window.freighter).filter(key => typeof window.freighter[key] === 'function'));
+      }
+    }
+    
+    // Try to use Freighter's disconnect function if available (for future compatibility)
+    if (typeof freighter.disconnect === 'function') {
+      console.log('Calling Freighter disconnect API...');
+      try {
+        await freighter.disconnect();
+        console.log('Successfully called disconnect API');
+      } catch (e) {
+        console.warn('Error calling freighter.disconnect:', e);
+      }
+    } 
+    
+    // Try direct window access as fallback
+    if (typeof window !== 'undefined' && window.freighter) {
+      try {
+        // @ts-ignore
+        if (typeof window.freighter.disconnect === 'function') {
+          // @ts-ignore
+          await window.freighter.disconnect();
+          console.log('Successfully called window.freighter.disconnect');
+        }
+      } catch (e) {
+        console.warn('Error calling window.freighter.disconnect:', e);
+      }
+    }
+    
+    // Set a clear flag in localStorage to indicate we've explicitly disconnected
+    // This helps prevent auto-connect attempts
+    localStorage.setItem('wallet_explicitly_disconnected', 'true');
+    
+    // This function will always return true since disconnection is primarily
+    // about clearing app state rather than an actual wallet API call
     return true;
   } catch (error) {
     console.error('Error disconnecting wallet:', error);
-    return false;
+    // Still return true to trigger UI update
+    return true;
   }
 };
 
