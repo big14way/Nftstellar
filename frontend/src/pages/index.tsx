@@ -1,107 +1,83 @@
-import type { NextPage } from 'next';
-import Head from 'next/head';
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import styles from '../styles/Home.module.css';
-import WalletConnect from '../components/WalletConnect';
 import { useAppContext } from '../providers/AppContext';
+import Layout from '../components/Layout';
+import Link from 'next/link';
+import styles from '../styles/Home.module.css';
 
-const Home: NextPage = () => {
+const HomePage = () => {
   const { state } = useAppContext();
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
-  const [walletKey, setWalletKey] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const { isConnected } = state;
+  const [isClientSide, setIsClientSide] = useState(false);
   
-  // Handle client-side state after first render
   useEffect(() => {
-    setMounted(true);
-    setIsWalletConnected(state?.isConnected || false);
-    setWalletKey(state?.walletKey || null);
-  }, [state?.isConnected, state?.walletKey]);
+    setIsClientSide(true);
+  }, []);
+  
+  if (!isClientSide) {
+    return null; // Avoid rendering on server to prevent hydration issues
+  }
   
   return (
-    <>
-      <Head>
-        <title>Stellar NFT Marketplace</title>
-        <meta name="description" content="NFT Marketplace built on Stellar blockchain" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
+    <Layout>
       <div className={styles.container}>
-        <div className={styles.heroSection}>
-          <h1 className={styles.title}>Stellar NFT Marketplace</h1>
-          <p className={styles.subtitle}>
-            Discover, collect, and trade unique digital assets on the Stellar blockchain
-          </p>
-        </div>
-        
-        <div className={styles.connectSection}>
-          <div className={styles.connectInfo}>
-            <h2 className={styles.sectionTitle}>Connect your wallet to get started</h2>
-            <p className={styles.sectionText}>
-              Use Freighter wallet to browse, purchase, and manage your NFTs on the Stellar blockchain.
+        <div className={styles.hero}>
+          <div className={styles.heroContent}>
+            <h1 className={styles.heroTitle}>
+              Discover, Collect, and Sell Stellar NFTs
+            </h1>
+            <p className={styles.heroSubtitle}>
+              The premier NFT marketplace on the Stellar blockchain
             </p>
-            
-            <div className={styles.walletConnectWrapper}>
-              <WalletConnect />
+            <div className={styles.ctaButtons}>
+              <Link href="/browse" className={styles.primaryButton}>
+                Explore NFTs
+              </Link>
+              {isConnected ? (
+                <Link href="/create" className={styles.secondaryButton}>
+                  Create NFT
+                </Link>
+              ) : (
+                <button className={`${styles.secondaryButton} ${styles.disabledButton}`} disabled>
+                  Connect Wallet to Create
+                </button>
+              )}
             </div>
-          </div>
-          
-          <div className={styles.imageWrapper}>
-            <img 
-              src="/wallet-illustration.svg" 
-              alt="Wallet Illustration"
-              className={styles.walletImage}
-            />
           </div>
         </div>
         
-        {mounted && isWalletConnected && walletKey && (
-          <div className={styles.successCard}>
-            <h3 className={styles.cardTitle}>Connected Successfully</h3>
-            <p className={styles.cardText}>
-              Your wallet is now connected. You can start exploring the marketplace.
-            </p>
-            
-            <div className={styles.buttonGrid}>
-              <Link href="/browse" className={`${styles.button} ${styles.primaryButton}`}>
-                Browse NFTs
-              </Link>
-              <Link href="/create" className={`${styles.button} ${styles.successButton}`}>
-                Create NFT
-              </Link>
-              <Link href="/wallet-demo" className={`${styles.button} ${styles.accentButton}`}>
-                Wallet Demo
-              </Link>
+        <div className={styles.features}>
+          <div className={styles.featuresTitle}>
+            <h2>Why Choose Stellar NFT Marketplace?</h2>
+          </div>
+          <div className={styles.featureCards}>
+            <div className={styles.featureCard}>
+              <div className={styles.featureIcon}>💰</div>
+              <h3>Low Fees</h3>
+              <p>Benefit from Stellar's low transaction costs and fast confirmation times.</p>
+            </div>
+            <div className={styles.featureCard}>
+              <div className={styles.featureIcon}>🔒</div>
+              <h3>Secure</h3>
+              <p>Assets secured by blockchain technology and smart contracts.</p>
+            </div>
+            <div className={styles.featureCard}>
+              <div className={styles.featureIcon}>🌐</div>
+              <h3>Global</h3>
+              <p>Connect with creators and collectors from around the world.</p>
             </div>
           </div>
-        )}
+        </div>
         
-        <div className={styles.featuresGrid}>
-          <div className={styles.featureCard}>
-            <h3 className={styles.cardTitle}>Discover NFTs</h3>
-            <p className={styles.cardText}>
-              Browse through unique digital assets created by artists and creators from around the world.
-            </p>
-          </div>
-          
-          <div className={styles.featureCard}>
-            <h3 className={styles.cardTitle}>Create and Sell</h3>
-            <p className={styles.cardText}>
-              Create your own NFTs and sell them on the marketplace with low transaction fees.
-            </p>
-          </div>
-          
-          <div className={styles.featureCard}>
-            <h3 className={styles.cardTitle}>Fast and Secure</h3>
-            <p className={styles.cardText}>
-              Benefit from Stellar's fast transaction times and low fees while trading your digital assets.
-            </p>
-          </div>
+        <div className={styles.getStarted}>
+          <h2>Ready to Get Started?</h2>
+          <p>Connect your Freighter wallet and start exploring the world of Stellar NFTs.</p>
+          <Link href={isConnected ? "/my-nfts" : "/browse"} className={styles.primaryButton}>
+            {isConnected ? "View My NFTs" : "Browse Marketplace"}
+          </Link>
         </div>
       </div>
-    </>
+    </Layout>
   );
 };
 
-export default Home; 
+export default HomePage; 

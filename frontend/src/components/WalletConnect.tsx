@@ -228,17 +228,6 @@ const WalletConnect = () => {
           </p>
         </div>
       )}
-      
-      {/* Debug information */}
-      {isClientSide && (
-        <div className={styles.debugInfo}>
-          <p className={styles.debugTitle}>Debug Info:</p>
-          <p>Freighter installed: {hasFreighter === null ? 'checking...' : hasFreighter ? 'yes' : 'no'}</p>
-          <p>Wallet connected: {isConnected ? 'yes' : 'no'}</p>
-          <p>Connection in progress: {isConnecting ? 'yes' : 'no'}</p>
-          {debugInfo && <p>Extra: {debugInfo}</p>}
-        </div>
-      )}
     </div>
   );
 };
