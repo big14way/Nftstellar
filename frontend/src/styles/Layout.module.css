@@ -1,0 +1,103 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  background-color: white;
+  border-bottom: 1px solid #eaeaea;
+  padding: 1rem 0;
+  z-index: 10;
+}
+
+.headerContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  text-decoration: none;
+}
+
+.navContainer {
+  display: flex;
+  align-items: center;
+}
+
+.navigation {
+  display: flex;
+  gap: 2rem;
+  margin-right: 2rem;
+}
+
+@media (max-width: 768px) {
+  .navigation {
+    display: none;
+  }
+}
+
+.navLink {
+  font-weight: 500;
+  color: #555;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.navLink:hover {
+  color: #0070f3;
+}
+
+.walletConnectContainer {
+  width: 180px;
+}
+
+.main {
+  flex: 1;
+}
+
+.footer {
+  border-top: 1px solid #eaeaea;
+  padding: 1.5rem 0;
+  background-color: white;
+}
+
+.footerContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .footerContent {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+.footerLinks {
+  display: flex;
+  gap: 1rem;
+}
+
+.footerLink {
+  color: #555;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footerLink:hover {
+  color: #0070f3;
+} 

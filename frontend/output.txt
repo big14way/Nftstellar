@@ -1,0 +1,20 @@
+
+> stellar-nft-marketplace-frontend@1.0.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+   ▲ Next.js 15.2.4
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.1.79:3001
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 5.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 2.1s (433 modules)
+ GET / 200 in 3209ms
+ ○ Compiling /mint ...
+ ✓ Compiled /mint in 2.7s (437 modules)
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+ HEAD /mint 200 in 3021ms
+[?25h

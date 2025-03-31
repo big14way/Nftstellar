@@ -1,0 +1,42 @@
+{
+  "name": "stellar-nft-marketplace-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Stellar NFT Marketplace using Soroban contracts",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest"
+  },
+  "keywords": [
+    "stellar",
+    "soroban",
+    "nft",
+    "marketplace",
+    "blockchain"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@creit.tech/stellar-wallets-kit": "^1.7.3",
+    "@stellar/freighter-api": "^4.1.0",
+    "@stellar/wallet-sdk": "^0.11.2",
+    "@types/node": "^22.13.14",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "next": "^15.2.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "soroban-client": "^1.0.1",
+    "stellar-sdk": "^13.1.0",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.8.2"
+  },
+  "devDependencies": {
+    "@stellar/stellar-sdk": "^13.1.0",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.27"
+  }
+}
