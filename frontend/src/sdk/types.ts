@@ -1,5 +1,13 @@
 import { SorobanRpc } from '@stellar/stellar-sdk';
 
+export interface StellarSdk {
+  getListedNFTs(): Promise<NFTListing[]>;
+  createNFTListing(params: { tokenId: string; price: string }): Promise<{ id: string }>;
+  getPublicKey(): string;
+  buyNFT(params: { listingId: string; price: string }): Promise<void>;
+  cancelNFTListing(params: { listingId: string }): Promise<void>;
+}
+
 export interface TokenMetadata {
   name: string;
   symbol: string;

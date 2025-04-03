@@ -31,26 +31,31 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => setMounted(false);
   }, []);
 
-  // Check initial connection status
+  // Check if wallet was previously connected
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !mounted) return;
 
-    const checkConnection = async () => {
+    const checkPreviousConnection = async () => {
       try {
-        const connected = await isConnected();
-        if (connected) {
-          const key = await getPublicKey();
-          setWalletConnected(true);
-          setPublicKey(key);
+        const wasConnected = localStorage.getItem('walletConnected') === 'true';
+        if (wasConnected) {
+          const connected = await isConnected();
+          if (connected) {
+            const key = await getPublicKey();
+            setWalletConnected(true);
+            setPublicKey(key);
+          } else {
+            // Clear stored connection if wallet is no longer connected
+            localStorage.removeItem('walletConnected');
+          }
         }
       } catch (error) {
-        console.error('Error checking wallet connection:', error);
+        console.error('Error checking previous wallet connection:', error);
+        localStorage.removeItem('walletConnected');
       }
     };
 
-    if (mounted) {
-      checkConnection();
-    }
+    checkPreviousConnection();
   }, [mounted]);
 
   const connect = useCallback(async () => {
@@ -60,24 +65,25 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const connected = await isConnected();
       
       if (!connected) {
-        alert('Please install and set up the Freighter wallet extension.');
         window.open('https://www.freighter.app/', '_blank');
-        return;
+        throw new Error('Please install and set up the Freighter wallet extension.');
       }
       
       const key = await getPublicKey();
       setWalletConnected(true);
       setPublicKey(key);
+      localStorage.setItem('walletConnected', 'true');
       console.log('Connected to Freighter wallet with public key:', key);
     } catch (error) {
       console.error('Error connecting to Freighter:', error);
-      alert('Error connecting to wallet. Please make sure Freighter is installed and try again.');
+      throw error;
     }
   }, []);
 
   const disconnect = useCallback(() => {
     setWalletConnected(false);
     setPublicKey(null);
+    localStorage.removeItem('walletConnected');
   }, []);
 
   const sendTransaction = useCallback(async (destination: string, amount: string) => {
@@ -88,13 +94,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         throw new Error('Wallet not connected');
       }
 
-      // Set up a server connection to the Stellar network (testnet)
       const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-      
-      // Fetch the account details
       const sourceAccount = await server.loadAccount(publicKey);
       
-      // Start building the transaction
       const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
         fee: StellarSdk.BASE_FEE,
         networkPassphrase: StellarSdk.Networks.TESTNET
@@ -109,10 +111,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .setTimeout(30)
         .build();
       
-      // Sign the transaction with Freighter
       const signedXDR = await signTransaction(transaction.toXDR());
-      
-      // Submit the signed transaction to the Stellar network
       const transactionToSubmit = StellarSdk.TransactionBuilder.fromXDR(
         signedXDR,
         StellarSdk.Networks.TESTNET
@@ -127,7 +126,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [publicKey]);
 
-  // Don't render anything until mounted to prevent hydration issues
   if (!mounted) return <>{children}</>;
 
   return (

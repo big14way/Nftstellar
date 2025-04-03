@@ -1,134 +1,51 @@
-import { useState, useEffect, useCallback } from 'react';
-import { SiStellar } from 'react-icons/si';
-import styles from '@/styles/WalletConnect.module.css';
+import React from 'react';
+import { useWallet } from '@/contexts/WalletContext';
+import { RiWallet3Line } from 'react-icons/ri';
+import { HiLogout } from 'react-icons/hi';
 
-const WalletConnect = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletKey, setWalletKey] = useState<string | null>(null);
-  const [isChecking, setIsChecking] = useState(true);
-  const [hasFreighter, setHasFreighter] = useState<boolean | null>(null);
-  const [isClientSide, setIsClientSide] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  // Check if we're on client side
-  useEffect(() => {
-    setIsClientSide(true);
-  }, []);
-
-  // Check Freighter installation and connection status
-  useEffect(() => {
-    if (!isClientSide) return;
-
-    const checkFreighter = async () => {
-      try {
-        setIsChecking(true);
-        const installed = typeof window.freighter !== 'undefined';
-        setHasFreighter(installed);
-
-        if (installed) {
-          // Check localStorage first to avoid popups
-          const storedConnection = localStorage.getItem('walletConnected');
-          
-          if (storedConnection === 'true') {
-            const connected = await window.freighter.isConnected();
-            if (connected) {
-              const publicKey = await window.freighter.getPublicKey();
-              setWalletKey(publicKey);
-              setIsConnected(true);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error checking Freighter:', err);
-        setHasFreighter(false);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkFreighter();
-
-    // Re-check when window gains focus
-    const handleFocus = () => {
-      const storedConnection = localStorage.getItem('walletConnected');
-      if (storedConnection === 'true') {
-        checkFreighter();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isClientSide]);
-
-  const connectWallet = async () => {
-    try {
-      setIsConnecting(true);
-      
-      if (!hasFreighter) {
-        window.open('https://www.freighter.app/', '_blank');
-        return;
-      }
-
-      const publicKey = await window.freighter.getPublicKey();
-      setWalletKey(publicKey);
-      setIsConnected(true);
-      localStorage.setItem('walletConnected', 'true');
-
-    } catch (error) {
-      console.error('Error connecting wallet:', error);
-      alert('Failed to connect wallet. Please try again.');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const disconnectWallet = async () => {
-    try {
-      setIsConnected(false);
-      setWalletKey(null);
-      localStorage.removeItem('walletConnected');
-    } catch (error) {
-      console.error('Error disconnecting wallet:', error);
-    }
-  };
-
-  const formatAddress = (address: string) => {
-    if (!address) return '';
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
-  };
-
-  if (!isClientSide || isChecking) {
-    return (
-      <div className={styles.walletConnect}>
-        <button className={`${styles.connectButton} ${styles.loading}`} disabled>
-          <SiStellar className={styles.icon} />
-          Checking Wallet...
-        </button>
-      </div>
-    );
-  }
+const WalletConnect: React.FC = () => {
+  const { isConnected, connect, disconnect, publicKey } = useWallet();
 
   return (
-    <div className={styles.walletConnect}>
+    <div className="flex items-center">
       {!isConnected ? (
-        <button 
-          className={`${styles.connectButton} ${isConnecting ? styles.loading : ''}`}
-          onClick={connectWallet}
-          disabled={isConnecting}
+        <button
+          onClick={connect}
+          className="group relative flex items-center space-x-2 px-4 py-2 bg-dark-800 text-white rounded-xl 
+                     overflow-hidden transition-all duration-300 hover:shadow-glow"
         >
-          <SiStellar className={styles.icon} />
-          {!hasFreighter ? 'Install Freighter' : isConnecting ? 'Connecting...' : 'Connect Wallet'}
+          {/* Gradient background that shows on hover */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-accent-400 opacity-0 
+                        group-hover:opacity-100 transition-opacity duration-300" />
+          
+          {/* Button content */}
+          <div className="relative flex items-center space-x-2">
+            <RiWallet3Line className="h-5 w-5 text-primary-400 group-hover:text-white transition-colors" />
+            <span className="font-medium">Connect Wallet</span>
+          </div>
         </button>
       ) : (
-        <div className={styles.connectedWallet}>
-          <span className={styles.address} title={walletKey || ''}>
-            {formatAddress(walletKey || '')}
-          </span>
-          <button 
-            className={styles.disconnectButton}
-            onClick={disconnectWallet}
+        <div className="flex items-center space-x-3">
+          {/* Connected wallet display */}
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-400 to-accent-400 rounded-xl 
+                          opacity-20 group-hover:opacity-100 transition-opacity duration-300 blur" />
+            <div className="relative flex items-center space-x-2 px-3 py-1.5 bg-dark-800 rounded-xl border border-dark-700">
+              <div className="h-2 w-2 bg-primary-400 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-dark-200 font-mono group-hover:text-white transition-colors">
+                {publicKey?.substring(0, 4)}...{publicKey?.substring(publicKey.length - 4)}
+              </span>
+            </div>
+          </div>
+
+          {/* Disconnect button */}
+          <button
+            onClick={disconnect}
+            className="relative group p-2 text-dark-400 rounded-lg transition-all duration-300"
           >
-            Disconnect
+            <div className="absolute inset-0 bg-red-400/10 rounded-lg opacity-0 
+                          group-hover:opacity-100 transition-opacity duration-300" />
+            <HiLogout className="relative h-5 w-5 group-hover:text-red-400 transition-colors" />
           </button>
         </div>
       )}

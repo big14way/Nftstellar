@@ -7,12 +7,13 @@ import { useAppContext } from '@/providers/AppContext';
 import Image from 'next/image';
 import WalletRequired from '@/components/WalletRequired';
 import CreateNFTForm from '@/components/CreateNFTForm';
+import CreateNFT from '../components/CreateNFT';
 
 const CreateNFTPage = () => {
   return (
-    <WalletRequired>
-      <CreateNFTForm />
-    </WalletRequired>
+    <div className="min-h-screen bg-gray-50">
+      <CreateNFT />
+    </div>
   );
 };
 

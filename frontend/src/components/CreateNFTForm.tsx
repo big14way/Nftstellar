@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useWallet } from '@/contexts/WalletContext';
+import { nftService } from '@/services/nft.service';
 import styles from '@/styles/CreateNFT.module.css';
 import { FiUpload } from 'react-icons/fi';
+import { useRouter } from 'next/router';
 
 interface FormData {
   name: string;
@@ -14,6 +16,7 @@ interface FormData {
 
 const CreateNFTForm: React.FC = () => {
   const { publicKey } = useWallet();
+  const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
@@ -55,27 +58,29 @@ const CreateNFTForm: React.FC = () => {
   };
 
   const validateForm = () => {
-    if (!imageFile) {
-      setError('Please upload an image for your NFT');
+    try {
+      if (!imageFile) {
+        throw new Error('Please upload an image for your NFT');
+      }
+      if (!formData.name.trim()) {
+        throw new Error('Please enter a name for your NFT');
+      }
+      if (!formData.description.trim()) {
+        throw new Error('Please enter a description for your NFT');
+      }
+
+      // Validate price and royalty using NFT service
+      nftService.validateNFTParams(formData.price, formData.royalty);
+
+      return true;
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Invalid form data');
+      }
       return false;
     }
-    if (!formData.name.trim()) {
-      setError('Please enter a name for your NFT');
-      return false;
-    }
-    if (!formData.description.trim()) {
-      setError('Please enter a description for your NFT');
-      return false;
-    }
-    if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
-      setError('Please enter a valid price');
-      return false;
-    }
-    if (!formData.royalty || isNaN(Number(formData.royalty)) || Number(formData.royalty) < 0 || Number(formData.royalty) > 15) {
-      setError('Please enter a valid royalty percentage (0-15%)');
-      return false;
-    }
-    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,20 +88,29 @@ const CreateNFTForm: React.FC = () => {
     setError('');
     setSuccess('');
 
-    if (!validateForm()) return;
+    if (!validateForm() || !imageFile) return;
 
     try {
       setIsCreating(true);
 
-      // TODO: Implement actual NFT creation logic here
-      // 1. Upload image to IPFS
-      // 2. Create metadata and upload to IPFS
-      // 3. Mint NFT on Stellar blockchain
-      
-      // Simulating API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const result = await nftService.createNFT(
+        imageFile,
+        {
+          name: formData.name,
+          description: formData.description,
+          attributes: formData.collection ? [
+            {
+              trait_type: 'Collection',
+              value: formData.collection
+            }
+          ] : undefined
+        },
+        formData.price,
+        formData.royalty
+      );
 
-      setSuccess('NFT created successfully!');
+      setSuccess('NFT created successfully! Redirecting to your NFTs page...');
+      
       // Reset form
       setFormData({
         name: '',
@@ -107,8 +121,17 @@ const CreateNFTForm: React.FC = () => {
       });
       setImageFile(null);
       setImagePreview('');
+
+      // Redirect to My NFTs page after a short delay
+      setTimeout(() => {
+        router.push('/my-nfts');
+      }, 2000);
     } catch (err) {
-      setError('Failed to create NFT. Please try again.');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to create NFT. Please try again.');
+      }
       console.error('Error creating NFT:', err);
     } finally {
       setIsCreating(false);

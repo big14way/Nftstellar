@@ -2,27 +2,21 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #13151a 0%, #1e2128 100%);
-  color: #fff;
-  padding-top: 80px;
 }
 
 .header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 80px;
-  z-index: 1000;
-  background: rgba(19, 21, 26, 0.95);
-  backdrop-filter: blur(10px);
+  background: rgba(17, 17, 17, 0.95);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: fixed;
+  width: 100%;
+  z-index: 50;
 }
 
 .headerContent {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -32,82 +26,150 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  text-decoration: none;
-  color: #fff;
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: bold;
+  color: #fff;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.logo:hover {
+  opacity: 0.8;
 }
 
 .logoIcon {
-  color: #00ff9d;
-  font-size: 2rem;
+  color: #2D9CDB;
+  font-size: 1.75rem;
 }
 
-.headerContent nav {
+.navigation {
   display: flex;
   gap: 2rem;
+  align-items: center;
 }
 
-.headerContent nav a {
+.navLink {
   color: #fff;
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.3s ease;
+  transition: color 0.2s;
+}
+
+.navLink:hover {
+  color: #2D9CDB;
+}
+
+.walletConnect {
+  display: flex;
+  align-items: center;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.connectButton {
+  background: #2D9CDB;
+  color: white;
+}
+
+.connectButton:hover:not(:disabled) {
+  background: #2486BE;
+}
+
+.connectButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.connecting {
   position: relative;
+  padding-right: 2.5rem;
 }
 
-.headerContent nav a:hover {
-  color: #00ff9d;
-}
-
-.headerContent nav a::after {
+.connecting::after {
   content: '';
   position: absolute;
-  bottom: -4px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: #00ff9d;
-  transition: width 0.3s ease;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.headerContent nav a:hover::after {
-  width: 100%;
+.walletInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.walletAddress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-family: monospace;
+}
+
+.statusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: #4CAF50;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.disconnectButton {
+  background: transparent;
+  color: #FF5252;
+  border: 1px solid #FF5252;
+}
+
+.disconnectButton:hover {
+  background: #FF5252;
+  color: white;
 }
 
 .main {
   flex: 1;
-  padding: 2rem;
-  max-width: 1400px;
-  width: 100%;
+  padding-top: 5rem;
+  max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+  padding: 6rem 1rem 2rem;
 }
 
 .footer {
-  background: rgba(19, 21, 26, 0.8);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #111;
+  color: #fff;
   padding: 3rem 0 1rem;
 }
 
 .footerContent {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 1rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 2rem;
 }
 
 .footerSection h3 {
-  color: #00ff9d;
-  margin-bottom: 1rem;
   font-size: 1.2rem;
-}
-
-.footerSection p {
-  color: #a0a0a0;
-  line-height: 1.6;
+  margin-bottom: 1rem;
+  color: #2D9CDB;
 }
 
 .footerLink {
@@ -115,11 +177,11 @@
   color: #fff;
   text-decoration: none;
   margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
+  transition: color 0.2s;
 }
 
 .footerLink:hover {
-  color: #00ff9d;
+  color: #2D9CDB;
 }
 
 .socialLinks {
@@ -130,20 +192,40 @@
 .socialLinks a {
   color: #fff;
   font-size: 1.5rem;
-  transition: color 0.3s ease;
+  transition: color 0.2s;
 }
 
 .socialLinks a:hover {
-  color: #00ff9d;
+  color: #2D9CDB;
 }
 
 .footerBottom {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 2rem auto 0;
-  padding: 1rem 2rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem;
   text-align: center;
-  color: #a0a0a0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes spin {
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 768px) {
@@ -153,19 +235,27 @@
     padding: 1rem;
   }
 
-  .headerContent nav {
-    gap: 1rem;
+  .header nav {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 1rem;
   }
 
-  .main {
-    padding: 8rem 1rem 2rem;
+  .walletConnect {
+    width: 100%;
+    justify-content: center;
   }
 
   .footerContent {
     grid-template-columns: 1fr;
     gap: 2rem;
-    padding: 0 1rem;
+  }
+
+  .footerSection {
+    text-align: center;
+  }
+
+  .socialLinks {
+    justify-content: center;
   }
 } 

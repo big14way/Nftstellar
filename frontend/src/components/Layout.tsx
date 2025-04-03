@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { FaGithub, FaTwitter, FaDiscord } from 'react-icons/fa';
@@ -17,7 +17,23 @@ const Layout: React.FC<LayoutProps> = ({
   title = 'Stellar NFT Marketplace',
   description = 'Create, buy, and sell NFTs on the Stellar blockchain',
 }) => {
-  const { isConnected, connect, disconnect, walletAddress } = useWallet();
+  const { isConnected, connect, disconnect, publicKey } = useWallet();
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      await connect();
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = () => {
+    disconnect();
+  };
 
   return (
     <div className={styles.container}>
@@ -34,12 +50,12 @@ const Layout: React.FC<LayoutProps> = ({
             <span>Stellar NFTs</span>
           </Link>
 
-          <nav>
-            <Link href="/browse">Browse</Link>
+          <nav className={styles.navigation}>
+            <Link href="/browse" className={styles.navLink}>Browse</Link>
             {isConnected && (
               <>
-                <Link href="/create">Create</Link>
-                <Link href="/my-nfts">My NFTs</Link>
+                <Link href="/create" className={styles.navLink}>Create</Link>
+                <Link href="/my-nfts" className={styles.navLink}>My NFTs</Link>
               </>
             )}
           </nav>
@@ -47,19 +63,21 @@ const Layout: React.FC<LayoutProps> = ({
           <div className={styles.walletConnect}>
             {!isConnected ? (
               <button 
-                className={`${styles.button} ${styles.connect}`}
-                onClick={connect}
+                className={`${styles.button} ${styles.connectButton} ${isConnecting ? styles.connecting : ''}`}
+                onClick={handleConnect}
+                disabled={isConnecting}
               >
-                Connect Wallet
+                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
               </button>
             ) : (
-              <div className={styles.connectedInfo}>
-                <p className={styles.walletAddress}>
-                  {walletAddress?.substring(0, 4)}...{walletAddress?.substring(walletAddress.length - 4)}
-                </p>
+              <div className={styles.walletInfo}>
+                <div className={styles.walletAddress}>
+                  <div className={styles.statusDot} />
+                  <span>{publicKey?.substring(0, 4)}...{publicKey?.substring(publicKey.length - 4)}</span>
+                </div>
                 <button 
-                  className={`${styles.button} ${styles.disconnect}`}
-                  onClick={disconnect}
+                  className={`${styles.button} ${styles.disconnectButton}`}
+                  onClick={handleDisconnect}
                 >
                   Disconnect
                 </button>
@@ -79,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({
             <h3>About</h3>
             <p>A modern NFT marketplace built on the Stellar blockchain, enabling creators and collectors to trade unique digital assets.</p>
           </div>
-          
+
           <div className={styles.footerSection}>
             <h3>Quick Links</h3>
             <Link href="/browse" className={styles.footerLink}>Browse NFTs</Link>
@@ -106,7 +124,7 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
           </div>
         </div>
-
+        
         <div className={styles.footerBottom}>
           <p>&copy; {new Date().getFullYear()} Stellar NFT Marketplace. All rights reserved.</p>
         </div>

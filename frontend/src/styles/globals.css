@@ -2,13 +2,188 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --primary-color: #1a56db;
-  --secondary-color: #10b981;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-dark-900 text-white min-h-screen antialiased;
+  }
+
+  ::selection {
+    @apply bg-primary-500/20 text-primary-200;
+  }
 }
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@layer components {
+  .nav-link {
+    @apply text-dark-300 hover:text-white transition-colors duration-200;
+  }
+
+  .nav-link.active {
+    @apply text-white;
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-400 to-accent-400
+           transition-all duration-300;
+  }
+
+  .nav-link:hover::after {
+    @apply w-full;
+  }
+
+  .mobile-nav-link {
+    @apply flex items-center space-x-2 w-full px-3 py-3 text-dark-400 hover:text-white
+           hover:bg-dark-800/50 transition-all duration-200 rounded-xl;
+  }
+
+  .footer-link {
+    @apply text-dark-400 hover:text-primary-400 transition-colors duration-200;
+  }
+
+  /* Card styles */
+  .card {
+    @apply relative transition-all duration-300;
+  }
+
+  .card::before {
+    content: '';
+    @apply absolute inset-[-1px] rounded-xl bg-gradient-to-r from-primary-500 via-accent-500 to-primary-500 opacity-0 transition-opacity duration-300 -z-10;
+  }
+
+  .card:hover::before {
+    @apply opacity-100;
+  }
+
+  .input {
+    @apply bg-dark-800 border border-dark-700 text-white rounded-lg px-4 py-2
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           placeholder-dark-400;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-dark-200 mb-2;
+  }
+
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-lg 
+           transition-all duration-200 inline-flex items-center justify-center
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-dark-700 hover:bg-dark-600 text-white px-6 py-2 rounded-lg
+           transition-all duration-200 inline-flex items-center justify-center
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .card-inner {
+    @apply relative bg-dark-800/50 backdrop-blur-sm border border-dark-700/50 rounded-xl p-6
+           transition-all duration-300;
+  }
+
+  .card:hover .card-inner {
+    @apply border-transparent;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-dark-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-dark-700 rounded-full hover:bg-dark-600 transition-colors duration-200;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Fade animations */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.fade-out {
+  animation: fadeOut 0.2s ease-in-out forwards;
+}
+
+/* Glass morphism */
+.glass {
+  @apply bg-dark-800/50 backdrop-blur-xl border border-dark-700/50;
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent;
+}
+
+/* Glow effects */
+.glow {
+  @apply relative;
+}
+
+.glow::before {
+  content: '';
+  @apply absolute -inset-0.5 bg-gradient-to-r from-primary-400 to-accent-400 rounded-xl
+         opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur;
+}
+
+.glow-content {
+  @apply relative bg-dark-950 rounded-xl;
+}
+
+:root {
+  --primary-color: #7C3AED;
+  --accent-color: #60A5FA;
+  --dark-900: #111827;
+  --dark-800: #1F2937;
+  --dark-700: #374151;
+  --dark-400: #9CA3AF;
+  --dark-300: #D1D5DB;
 }
 
 .line-clamp-2 {
