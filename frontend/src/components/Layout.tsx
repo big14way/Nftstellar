@@ -51,7 +51,7 @@ const Layout: React.FC<LayoutProps> = ({
           </Link>
 
           <nav className={styles.navigation}>
-            <Link href="/browse" className={styles.navLink}>Browse</Link>
+            <Link href="/browse" className={styles.navLink}>NFT Marketplace</Link>
             {isConnected && (
               <>
                 <Link href="/create" className={styles.navLink}>Create</Link>
@@ -100,7 +100,7 @@ const Layout: React.FC<LayoutProps> = ({
 
           <div className={styles.footerSection}>
             <h3>Quick Links</h3>
-            <Link href="/browse" className={styles.footerLink}>Browse NFTs</Link>
+            <Link href="/browse" className={styles.footerLink}>NFT Marketplace</Link>
             {isConnected && (
               <>
                 <Link href="/create" className={styles.footerLink}>Create NFT</Link>

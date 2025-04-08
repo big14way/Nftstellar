@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    domains: [
+      'nftstorage.link',
+      'ipfs.io',
+      'cloudflare-ipfs.com',
+      'gateway.pinata.cloud'
+    ],
+  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

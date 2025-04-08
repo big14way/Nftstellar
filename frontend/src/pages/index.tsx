@@ -1,45 +1,97 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { RiRocketLine, RiWalletLine, RiShoppingBagLine } from 'react-icons/ri';
 import NFTGrid from '@/components/NFTGrid';
 import { useWallet } from '@/contexts/WalletContext';
+import { nftService } from '@/services/nft.service';
+import Layout from '@/components/Layout';
 
-// Featured NFTs
-const featuredNFTs = [
-  {
-    id: '5',
-    title: 'Stellar Genesis #1',
-    image: '/nft-placeholder.png',
-    price: '500',
-    creator: '0xf234...a678',
-    likes: 120,
-    isListed: true,
-  },
-  {
-    id: '6',
-    title: 'Space Explorer',
-    image: '/nft-placeholder.png',
-    price: '300',
-    creator: '0xe765...b321',
-    likes: 85,
-    isListed: true,
-  },
-  {
-    id: '7',
-    title: 'Cosmic Collection #3',
-    image: '/nft-placeholder.png',
-    price: '250',
-    creator: '0xd876...c234',
-    likes: 67,
-    isListed: true,
-  }
-];
+interface NFT {
+  id: string;
+  title: string;
+  image: string;
+  price: string;
+  creator: string;
+  likes?: number;
+  isListed?: boolean;
+}
 
 const Home: React.FC = () => {
-  const { isConnected } = useWallet();
+  const { isConnected, publicKey } = useWallet();
+  const [featuredNFTs, setFeaturedNFTs] = useState<NFT[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedNFTs = async () => {
+      try {
+        setLoading(true);
+        
+        // Attempt to fetch most recent NFTs or fallback to mock data if not available
+        let nfts: NFT[] = [];
+        
+        try {
+          // This is a general fetch that would get the most recent NFTs from the marketplace
+          // Limit to 6 featured NFTs
+          const marketplaceNFTs = await nftService.getMarketplaceNFTs();
+          
+          if (marketplaceNFTs && marketplaceNFTs.length > 0) {
+            nfts = marketplaceNFTs.slice(0, 6).map(nft => ({
+              id: nft.id || nft.transactionHash || '',
+              title: nft.name || 'Untitled NFT',
+              image: nft.image || '/nft-placeholder.png',
+              price: nft.price?.toString() || '0',
+              creator: nft.attributes?.find(attr => attr.trait_type === 'creator')?.value?.toString() || '',
+              likes: Math.floor(Math.random() * 100),
+              isListed: true
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching NFTs, using fallback data:", error);
+          // Fallback to mock data if the service call fails
+          nfts = [
+            {
+              id: '5',
+              title: 'Stellar Genesis #1',
+              image: '/nft-placeholder.png',
+              price: '500',
+              creator: '0xf234...a678',
+              likes: 120,
+              isListed: true,
+            },
+            {
+              id: '6',
+              title: 'Space Explorer',
+              image: '/nft-placeholder.png',
+              price: '300',
+              creator: '0xe765...b321',
+              likes: 85,
+              isListed: true,
+            },
+            {
+              id: '7',
+              title: 'Cosmic Collection #3',
+              image: '/nft-placeholder.png',
+              price: '250',
+              creator: '0xd876...c234',
+              likes: 67,
+              isListed: true,
+            }
+          ];
+        }
+        
+        setFeaturedNFTs(nfts);
+      } catch (error) {
+        console.error('Error in fetchFeaturedNFTs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedNFTs();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <Layout title="Stellar NFT Marketplace - Discover, Collect, and Trade NFTs">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-radial from-primary-500/20 via-dark-950 to-dark-950" />
@@ -121,7 +173,7 @@ const Home: React.FC = () => {
               View All →
             </Link>
           </div>
-          <NFTGrid nfts={featuredNFTs} loading={false} />
+          <NFTGrid nfts={featuredNFTs} loading={loading} />
         </div>
       </section>
 
@@ -156,7 +208,7 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-    </div>
+    </Layout>
   );
 };
 

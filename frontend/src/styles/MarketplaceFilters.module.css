@@ -1,0 +1,188 @@
+.filters {
+  background-color: var(--dark-800);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+}
+
+.clearButton {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.clearButton:hover {
+  opacity: 0.8;
+}
+
+.searchContainer {
+  margin-bottom: 1.5rem;
+}
+
+.searchInput {
+  width: 100%;
+  background-color: var(--dark-900);
+  border: 1px solid var(--dark-700);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.searchInput::placeholder {
+  color: var(--dark-400);
+}
+
+.section {
+  border-bottom: 1px solid var(--dark-700);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.sectionHeader h4 {
+  font-size: 1rem;
+  font-weight: 500;
+  color: white;
+  margin: 0;
+}
+
+.expanded,
+.collapsed {
+  font-size: 1.25rem;
+  color: var(--dark-400);
+  transition: transform 0.2s;
+}
+
+.collapsed {
+  transform: rotate(-90deg);
+}
+
+.sectionContent {
+  padding-top: 0.75rem;
+}
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.checkboxItem:last-child {
+  margin-bottom: 0;
+}
+
+.checkboxItem input[type="checkbox"],
+.checkboxItem input[type="radio"] {
+  margin-right: 0.5rem;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.checkboxItem label {
+  color: var(--dark-300);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.priceInputs {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.priceInput {
+  background-color: var(--dark-900);
+  border: 1px solid var(--dark-700);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.priceInput:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.priceSeparator {
+  margin: 0 0.5rem;
+  color: var(--dark-400);
+}
+
+.applyButton {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.applyButton:hover {
+  background-color: #6d28d9;
+}
+
+.traitGroup {
+  margin-bottom: 1rem;
+}
+
+.traitGroup h5 {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--dark-300);
+  margin: 0 0 0.5rem 0;
+}
+
+.sortGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .filters {
+    padding: 1rem;
+  }
+} 

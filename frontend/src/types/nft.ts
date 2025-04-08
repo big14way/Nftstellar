@@ -7,6 +7,12 @@ export interface NFT {
   owner: string;
   creator: string;
   metadata: Record<string, any>;
+  royaltyPercentage?: number;
+  collection?: string;
+  attributes?: Array<{
+    trait_type: string;
+    value: string | number;
+  }>;
 }
 
 export interface NFTListing {
@@ -20,9 +26,9 @@ export interface NFTListing {
 }
 
 export enum ListingStatus {
-  ACTIVE = 'ACTIVE',
-  SOLD = 'SOLD',
-  CANCELLED = 'CANCELLED'
+  ACTIVE = 'active',
+  SOLD = 'sold',
+  CANCELLED = 'cancelled',
 }
 
 export interface ListingFilters {
@@ -30,7 +36,38 @@ export interface ListingFilters {
   minPrice?: string;
   maxPrice?: string;
   seller?: string;
-  sortBy?: 'price' | 'createdAt';
+  creator?: string;
+  collection?: string;
+  sortBy?: 'price' | 'createdAt' | 'popularity';
   sortDirection?: 'asc' | 'desc';
   searchQuery?: string;
+  traits?: Array<{
+    trait_type: string;
+    value: string | number;
+  }>;
+}
+
+export interface NFTTransferParams {
+  tokenId: string;
+  toAddress: string;
+}
+
+export interface NFTListingParams {
+  tokenId: string;
+  price: string;
+}
+
+export interface NFTBuyParams {
+  listingId: string;
+}
+
+export interface NFTCollection {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  creator: string;
+  nftCount: number;
+  floorPrice?: string;
+  totalVolume?: string;
 } 

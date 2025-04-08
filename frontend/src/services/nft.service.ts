@@ -2,6 +2,8 @@ import { getPublicKey, signTransaction } from '@stellar/freighter-api';
 import { ipfsService } from './ipfs.service';
 import { NFT_CONFIG } from '@/config/nft.config';
 import type { Server, TransactionBuilder, Operation, Asset } from 'stellar-sdk';
+import * as StellarSdk from 'stellar-sdk';
+import { BigNumber } from 'bignumber.js';
 
 interface NFTMetadata {
   name: string;
@@ -13,6 +15,11 @@ interface NFTMetadata {
   }>;
   transactionHash?: string;
   created_at?: string;
+  id?: string;
+  price?: string;
+  tokenId?: string;
+  owner?: string;
+  isListed?: boolean;
 }
 
 interface NFTCreateParams {
@@ -36,6 +43,9 @@ export class NFTService {
 
   constructor() {
     this.contractId = NFT_CONFIG.NFT_CONTRACT_ID;
+    this.networkPassphrase = NFT_CONFIG.NETWORK === 'testnet'
+      ? 'Test SDF Network ; September 2015'
+      : 'Public Global Stellar Network ; September 2015';
   }
 
   private async initialize() {
@@ -224,44 +234,117 @@ export class NFTService {
     }
   }
 
-  async listNFTForSale(tokenId: string, price: string) {
+  async listNFTForSale(tokenId: string, price: string): Promise<any> {
     try {
+      console.log(`Listing NFT with tokenId: ${tokenId} for price: ${price} XLM`);
+      
       await this.ensureInitialized();
       const sdk = this.stellarSdk;
+      
+      // Get the seller's public key directly using the imported function
+      const sellerPublicKey = await getPublicKey();
+      console.log(`Seller public key: ${sellerPublicKey}`);
+      
+      // Validate inputs
+      if (!tokenId || !price) {
+        throw new Error('TokenId and price are required');
+      }
+      
+      // Hash the tokenId instead of just sanitizing to ensure consistent and valid data entry name
+      // Create a hash from the tokenId to use as part of the key - this avoids data entry length issues
+      let hashKey: string;
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(tokenId);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        hashKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 10);
+        console.log(`Generated hash key for tokenId: ${hashKey}`);
+      } catch (error) {
+        // Fallback if crypto API is not available
+        console.log('Using fallback tokenId sanitization');
+        hashKey = tokenId.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
+      }
 
-      // Get the seller's public key
-      const publicKey = await getPublicKey();
-      const account = await this.server!.loadAccount(publicKey);
-
-      // Convert price from XLM to stroops (1 XLM = 10000000 stroops)
-      const priceInStroops = Math.floor(parseFloat(price) * 10000000);
-
-      // Create transaction
-      const transaction = new sdk.TransactionBuilder(account, {
-        fee: '100000',
-        networkPassphrase: this.networkPassphrase
-      })
-        .addOperation(sdk.Operation.manageData({
-          name: `nft_${tokenId}_price`,
-          value: priceInStroops.toString()
-        }))
-        .setTimeout(30)
-        .build();
-
-      // Sign transaction
-      const signedXDR = await signTransaction(transaction.toXDR(), {
-        networkPassphrase: this.networkPassphrase
-      });
-
-      // Submit transaction
-      const submittedTx = await this.server!.submitTransaction(transaction);
-
-      return {
-        success: true,
-        transactionHash: submittedTx.hash
-      };
-    } catch (error) {
-      console.error('Error listing NFT:', error);
+      // Validate price is a positive number
+      const priceValue = parseFloat(price);
+      if (isNaN(priceValue) || priceValue <= 0) {
+        throw new Error('Price must be a positive number');
+      }
+      
+      try {
+        console.log('Loading account...');
+        if (!this.server) {
+          throw new Error('Stellar server not initialized');
+        }
+        const account = await this.server.loadAccount(sellerPublicKey);
+        console.log('Account loaded successfully');
+        
+        // Convert price from XLM to stroops (1 XLM = 10,000,000 stroops)
+        const priceInStroops = new BigNumber(price).times(10000000).toFixed(0);
+        console.log(`Price converted to ${priceInStroops} stroops`);
+        
+        // Create a data entry name with a consistent format: nft_HASHKEY_price
+        const dataEntryName = `nft_${hashKey}_price`;
+        console.log(`Using data entry name: ${dataEntryName} (length: ${dataEntryName.length})`);
+        
+        // Check data entry name length (Stellar limit is 64 bytes)
+        if (dataEntryName.length > 64) {
+          throw new Error('Data entry name is too long. Please use a shorter token ID.');
+        }
+        
+        console.log('Creating transaction...');
+        const transaction = new sdk.TransactionBuilder(account, {
+          fee: sdk.BASE_FEE,
+          networkPassphrase: this.networkPassphrase
+        })
+          .addOperation(sdk.Operation.manageData({
+            name: dataEntryName,
+            value: priceInStroops
+          }))
+          .setTimeout(180)
+          .build();
+        
+        console.log('Signing transaction...');
+        // Use imported signTransaction function instead of window.freighter
+        const signedXDR = await signTransaction(transaction.toXDR(), {
+          networkPassphrase: this.networkPassphrase
+        });
+        
+        // Submit the signed transaction
+        console.log('Submitting transaction...');
+        // Convert the signed XDR back to a transaction and submit it
+        const signedTransaction = this.stellarSdk.TransactionBuilder.fromXDR(signedXDR, this.networkPassphrase);
+        const txResponse = await this.server.submitTransaction(signedTransaction);
+        console.log('Transaction submitted successfully:', txResponse);
+        
+        return {
+          success: true,
+          transactionHash: txResponse.hash,
+          tokenId: hashKey,
+          price: price
+        };
+      } catch (error: any) {
+        console.error('Error in Stellar transaction:', error);
+        
+        // Extract more detailed error from Horizon API if available
+        let detailedError = 'Error listing NFT on Stellar network';
+        
+        if (error.response && error.response.data) {
+          const horizonError = error.response.data;
+          console.error('Horizon API error:', horizonError);
+          
+          if (horizonError.extras && horizonError.extras.result_codes) {
+            detailedError += `: ${horizonError.extras.result_codes.transaction} - ${horizonError.extras.result_codes.operations?.join(', ') || 'Unknown operation error'}`;
+          } else if (horizonError.title) {
+            detailedError += `: ${horizonError.title}`;
+          }
+        }
+        
+        throw new Error(detailedError);
+      }
+    } catch (error: any) {
+      console.error('Error in listNFTForSale:', error);
       throw error;
     }
   }
@@ -306,6 +389,237 @@ export class NFTService {
     } catch (error) {
       console.error('Error buying NFT:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Transfer an NFT to another address
+   * @param tokenId ID of the NFT to transfer
+   * @param toAddress Destination address to receive the NFT
+   */
+  async transferNFT(tokenId: string, toAddress: string): Promise<{ success: boolean; transactionHash: string }> {
+    try {
+      await this.ensureInitialized();
+      const sdk = this.stellarSdk;
+
+      console.log(`Attempting to transfer NFT ${tokenId} to ${toAddress}`);
+
+      // Validate the destination address
+      if (!sdk.StrKey.isValidEd25519PublicKey(toAddress)) {
+        throw new Error('Invalid destination address');
+      }
+
+      // Get the sender's public key
+      const senderPublicKey = await getPublicKey();
+      console.log(`Sender public key: ${senderPublicKey}`);
+      
+      // Load account
+      const account = await this.server!.loadAccount(senderPublicKey);
+      console.log(`Account loaded successfully`);
+
+      // Check if we need to find CID in account data (for IPFS CIDs)
+      const isCID = tokenId.startsWith('Qm');
+      let dataKey = `nft_${tokenId}_transfer`;
+      let ownerKey = `nft_${tokenId}_owner`;
+      
+      // If it's a CID, directly try to find that CID in the account data
+      if (isCID) {
+        console.log(`TokenId appears to be a CID: ${tokenId}. Looking for it in account data...`);
+        let found = false;
+        
+        // Check if this CID exists in account data
+        for (const [key, value] of Object.entries(account.data_attr || {})) {
+          if (key.startsWith('nft_metadata_cid')) {
+            try {
+              const cidValue = Buffer.from(value as string, 'base64').toString('utf8');
+              if (cidValue === tokenId) {
+                found = true;
+                console.log(`Found matching CID in account data: ${cidValue}`);
+                break;
+              }
+            } catch (error) {
+              console.error('Error checking CID value:', error);
+            }
+          }
+        }
+        
+        if (!found) {
+          console.error('CID not found in account data entries');
+          console.error('Available data entries:', Object.keys(account.data_attr || {}));
+          throw new Error(`Could not find NFT with CID ${tokenId} in your account`);
+        }
+        
+        // Create a hash for the key to avoid length issues
+        try {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(tokenId);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hashKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 10);
+          console.log(`Generated hash key for CID: ${hashKey}`);
+          
+          dataKey = `nft_${hashKey}_transfer`;
+          ownerKey = `nft_${hashKey}_owner`;
+        } catch (error) {
+          console.warn('Error creating hash, using tokenId directly:', error);
+        }
+      }
+
+      // Create transaction
+      console.log(`Using data key: ${dataKey}`);
+      console.log(`Using owner key: ${ownerKey}`);
+      const transaction = new sdk.TransactionBuilder(account, {
+        fee: sdk.BASE_FEE,
+        networkPassphrase: this.networkPassphrase
+      })
+        .addOperation(sdk.Operation.payment({
+          destination: toAddress,
+          asset: sdk.Asset.native(),
+          amount: '0.0001' // Small amount for data entries
+        }))
+        .addOperation(sdk.Operation.manageData({
+          name: dataKey,
+          value: toAddress
+        }))
+        .addOperation(sdk.Operation.manageData({
+          name: ownerKey,
+          value: toAddress
+        }))
+        .setTimeout(60)
+        .build();
+
+      // Sign transaction
+      console.log('Signing transaction...');
+      const signedXDR = await signTransaction(transaction.toXDR(), {
+        networkPassphrase: this.networkPassphrase
+      });
+
+      // Submit transaction
+      console.log('Submitting transaction...');
+      // Convert the signed XDR back to a transaction and submit it
+      const signedTransaction = this.stellarSdk.TransactionBuilder.fromXDR(signedXDR, this.networkPassphrase);
+      const submittedTx = await this.server!.submitTransaction(signedTransaction);
+      console.log('Transaction submitted successfully:', submittedTx.hash);
+
+      console.log(`NFT ${tokenId} transferred to ${toAddress} successfully`);
+
+      return {
+        success: true,
+        transactionHash: submittedTx.hash
+      };
+    } catch (error) {
+      console.error('Error transferring NFT:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove an NFT listing from the marketplace
+   * @param tokenId ID of the NFT to delist
+   */
+  async cancelNFTListing(tokenId: string): Promise<{ success: boolean; transactionHash: string }> {
+    try {
+      await this.ensureInitialized();
+      const sdk = this.stellarSdk;
+
+      console.log(`Attempting to delist NFT with tokenId: ${tokenId}`);
+
+      // Get the owner's public key
+      const publicKey = await getPublicKey();
+      
+      console.log(`Loading account for ${publicKey}`);
+      const account = await this.server!.loadAccount(publicKey);
+      console.log('Account loaded successfully');
+      
+      // Log all data entries to help debug
+      console.log('Available data entries:', Object.keys(account.data_attr || {}));
+
+      // Generate the same hash key as used in listNFTForSale
+      let hashKey: string;
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(tokenId);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        hashKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 10);
+        console.log(`Generated hash key for tokenId: ${hashKey}`);
+      } catch (error) {
+        // Fallback if crypto API is not available
+        console.log('Using fallback tokenId sanitization');
+        hashKey = tokenId.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
+      }
+
+      // Use the same key format as in listNFTForSale
+      let dataEntryName = `nft_${hashKey}_price`;
+      console.log(`Using data entry name for delisting: ${dataEntryName}`);
+      
+      // Check if the data entry exists before trying to remove it
+      const dataEntryExists = account.data_attr && account.data_attr[dataEntryName];
+      if (!dataEntryExists) {
+        console.warn(`Data entry ${dataEntryName} not found. Available entries:`, Object.keys(account.data_attr || {}));
+        // Check if there's a simpler key format that might have been used
+        const simpleKey = `nft_${tokenId}_price`;
+        if (account.data_attr && account.data_attr[simpleKey]) {
+          console.log(`Found data entry with simple key format: ${simpleKey}`);
+          // Use the simple key format instead
+          dataEntryName = simpleKey;
+        } else {
+          // Return success even if the entry doesn't exist (already delisted)
+          console.log('NFT is not listed or already delisted');
+          return {
+            success: true,
+            transactionHash: 'not_required_already_delisted'
+          };
+        }
+      }
+
+      console.log(`Creating transaction to remove data entry: ${dataEntryName}`);
+      // Create transaction to remove the listing
+      const transaction = new sdk.TransactionBuilder(account, {
+        fee: sdk.BASE_FEE,
+        networkPassphrase: this.networkPassphrase
+      })
+        .addOperation(sdk.Operation.manageData({
+          name: dataEntryName,
+          value: null // Setting to null removes the data entry
+        }))
+        .setTimeout(180) // Longer timeout to ensure it goes through
+        .build();
+
+      // Sign transaction
+      console.log('Signing transaction...');
+      const signedXDR = await signTransaction(transaction.toXDR(), {
+        networkPassphrase: this.networkPassphrase
+      });
+
+      // Submit transaction
+      console.log('Submitting transaction...');
+      const signedTransaction = this.stellarSdk.TransactionBuilder.fromXDR(signedXDR, this.networkPassphrase);
+      const submittedTx = await this.server!.submitTransaction(signedTransaction);
+
+      console.log(`NFT listing cancelled successfully. Transaction hash: ${submittedTx.hash}`);
+
+      return {
+        success: true,
+        transactionHash: submittedTx.hash
+      };
+    } catch (error: any) {
+      console.error('Error cancelling NFT listing:', error);
+      
+      // Extract more detailed error information
+      let errorMessage = 'Failed to delist NFT';
+      if (error.response && error.response.data) {
+        const horizonError = error.response.data;
+        console.error('Horizon API error:', horizonError);
+        
+        if (horizonError.extras && horizonError.extras.result_codes) {
+          errorMessage += `: ${horizonError.extras.result_codes.transaction} - ${horizonError.extras.result_codes.operations?.join(', ') || 'Unknown operation error'}`;
+        } else if (horizonError.title) {
+          errorMessage += `: ${horizonError.title}`;
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -419,11 +733,61 @@ export class NFTService {
         })
         .filter((cid): cid is string => cid !== null); // Type guard to remove nulls
 
+      // Get all price entries to check if any NFTs are listed
+      const priceEntries = Object.entries(account.data_attr || {})
+        .filter(([key]) => key.includes('_price') && key.startsWith('nft_'))
+        .reduce((acc, [key, value]) => {
+          try {
+            // Extract the token ID part from the key (nft_TOKENID_price)
+            const parts = key.split('_');
+            if (parts.length >= 3) {
+              const tokenId = parts[1];
+              // Convert stroops to XLM (1 XLM = 10,000,000 stroops)
+              const priceInStroops = Buffer.from(value as string, 'base64').toString('utf8');
+              const priceInXLM = (parseInt(priceInStroops) / 10000000).toString();
+              acc[tokenId] = priceInXLM;
+            }
+            return acc;
+          } catch (error) {
+            console.error(`Error processing price entry ${key}:`, error);
+            return acc;
+          }
+        }, {} as Record<string, string>);
+
+      console.log('Price entries found:', priceEntries);
+
       // Fetch metadata for each NFT
       for (const cid of dataEntries) {
         try {
           console.log('Processing CID for owned NFT:', cid);
           const metadata = await this.getNFTMetadata(cid);
+          
+          // Generate a tokenId from the transaction hash or use a fallback
+          if (!metadata.tokenId) {
+            metadata.tokenId = metadata.transactionHash || metadata.id || cid;
+          }
+
+          // Check if this NFT is listed by looking for a price entry
+          // First try direct matching
+          let hashKey = '';
+          try {
+            // Create a hash for the tokenId to match how we store price entries
+            const encoder = new TextEncoder();
+            const data = encoder.encode(metadata.tokenId);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            hashKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 10);
+          } catch (error) {
+            // Fallback
+            hashKey = metadata.tokenId.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
+          }
+
+          // Check if there's a price for this tokenId hash
+          if (priceEntries[hashKey]) {
+            metadata.price = priceEntries[hashKey];
+            console.log(`NFT with CID ${cid} is listed for ${metadata.price} XLM`);
+          }
+          
           nfts.push(metadata);
         } catch (error) {
           console.error(`Error fetching metadata for NFT with CID ${cid}:`, error);
@@ -469,10 +833,17 @@ export class NFTService {
                 processedCIDs.add(cid);
 
                 const metadata = await this.getNFTMetadata(cid);
+                
+                // Generate a tokenId from the transaction hash
+                if (!metadata.tokenId) {
+                  metadata.tokenId = tx.hash;
+                }
+                
                 nfts.push({
                   ...metadata,
                   transactionHash: tx.hash,
-                  created_at: tx.created_at
+                  created_at: tx.created_at,
+                  tokenId: metadata.tokenId || tx.hash // Ensure tokenId is set
                 });
               } catch (error) {
                 console.error('Error processing NFT metadata:', error);
@@ -493,6 +864,432 @@ export class NFTService {
     } catch (error) {
       console.error('Error fetching NFTs by creator:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Gets a list of NFTs that are available in the marketplace
+   */
+  async getMarketplaceNFTs(limit: number = 20): Promise<NFTMetadata[]> {
+    try {
+      await this.ensureInitialized();
+      
+      console.log('Fetching marketplace NFTs...');
+      const nfts: NFTMetadata[] = [];
+      
+      // Get recent transactions for the network
+      const transactions = await this.server!.transactions()
+        .limit(100)
+        .order('desc')
+        .call();
+        
+      const processedCIDs = new Set();
+      let processedCount = 0;
+      
+      console.log(`Found ${transactions.records.length} recent transactions`);
+      
+      // First, collect NFTs from accounts that have listing data
+      try {
+        // Query a few test accounts that might have NFTs (for demo purposes)
+        // In production, you would use an indexer or a more targeted approach
+        const recentAccounts = await this.server!.operations()
+          .limit(50)
+          .order('desc')
+          .call();
+        
+        // Extract unique account IDs from operations
+        const accountIds = new Set<string>();
+        for (const op of recentAccounts.records) {
+          if (op.source_account) {
+            accountIds.add(op.source_account);
+          }
+        }
+        
+        console.log(`Checking ${accountIds.size} accounts for NFT listings...`);
+        
+        // Check each account for NFT listings
+        for (const accountId of Array.from(accountIds)) {
+          try {
+            const account = await this.server!.loadAccount(accountId);
+            
+            // Find price entries and NFT metadata entries
+            const priceEntries: Record<string, string> = {};
+            const metadataCIDs: string[] = [];
+            
+            // Process data entries
+            for (const [key, value] of Object.entries(account.data_attr || {})) {
+              if (key.includes('_price') && key.startsWith('nft_')) {
+                try {
+                  // Key format: nft_TOKENID_price or nft_HASH_price
+                  const parts = key.split('_');
+                  if (parts.length >= 3) {
+                    const tokenId = parts[1]; // This is either the token ID or its hash
+                    const priceInStroops = Buffer.from(value as string, 'base64').toString('utf8');
+                    const priceInXLM = (parseInt(priceInStroops) / 10000000).toString();
+                    priceEntries[tokenId] = priceInXLM;
+                    console.log(`Found price entry for token ${tokenId}: ${priceInXLM} XLM`);
+                  }
+                } catch (error) {
+                  console.warn('Error parsing price entry:', error);
+                }
+              } else if (key.startsWith('nft_metadata_cid')) {
+                try {
+                  const cid = Buffer.from(value as string, 'base64').toString('utf8');
+                  if (!processedCIDs.has(cid)) {
+                    metadataCIDs.push(cid);
+                    processedCIDs.add(cid);
+                  }
+                } catch (error) {
+                  console.warn('Error decoding CID:', error);
+                }
+              }
+            }
+            
+            // Process each NFT metadata and check if it's listed
+            for (const cid of metadataCIDs) {
+              if (processedCount >= limit) break;
+              
+              try {
+                const metadata = await this.getNFTMetadata(cid);
+                
+                // Generate hash key for the NFT ID
+                let hashKey: string;
+                try {
+                  const tokenId = metadata.tokenId || metadata.id || cid;
+                  const encoder = new TextEncoder();
+                  const data = encoder.encode(tokenId);
+                  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                  const hashArray = Array.from(new Uint8Array(hashBuffer));
+                  hashKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 10);
+                } catch (error) {
+                  const tokenId = metadata.tokenId || metadata.id || cid;
+                  hashKey = tokenId.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
+                }
+                
+                // Check if this NFT is listed
+                if (priceEntries[hashKey]) {
+                  console.log(`Found listed NFT with price: ${priceEntries[hashKey]} XLM`);
+                  
+                  nfts.push({
+                    ...metadata,
+                    price: priceEntries[hashKey],
+                    tokenId: metadata.tokenId || cid,
+                    id: metadata.id || cid,
+                    owner: accountId,
+                    isListed: true
+                  });
+                  
+                  processedCount++;
+                }
+              } catch (error) {
+                console.warn(`Error processing NFT metadata for CID ${cid}:`, error);
+              }
+            }
+          } catch (error) {
+            console.warn(`Error checking account ${accountId}:`, error);
+          }
+        }
+      } catch (error) {
+        console.warn('Error querying accounts for listings:', error);
+      }
+      
+      // If we didn't find enough listed NFTs, fall back to recent NFTs
+      if (nfts.length < limit) {
+        for (const tx of transactions.records) {
+          if (processedCount >= limit) break;
+          
+          try {
+            const operations = await tx.operations();
+            
+            for (const op of operations.records) {
+              if (processedCount >= limit) break;
+              
+              // Look for NFT metadata creation operations
+              if (op.type === 'manage_data' && op.name === 'nft_metadata_cid') {
+                try {
+                  const value = op.value as unknown as Buffer;
+                  const cid = value.toString('utf8');
+                  
+                  // Skip if we've already processed this CID
+                  if (processedCIDs.has(cid)) continue;
+                  processedCIDs.add(cid);
+                  
+                  console.log(`Processing NFT with CID ${cid}`);
+                  
+                  // Get the metadata
+                  const metadata = await this.getNFTMetadata(cid);
+                  
+                  // Try to determine if this NFT is for sale by fetching the source account
+                  let isListed = false;
+                  let price = '';
+                  let owner = op.source_account || '';
+                  
+                  try {
+                    // Load the account to see if it has any price data for this NFT
+                    const account = await this.server!.loadAccount(owner);
+                    
+                    // Generate token hash for looking up price
+                    let hashKey = '';
+                    try {
+                      const tokenId = metadata.tokenId || metadata.id || cid;
+                      const encoder = new TextEncoder();
+                      const data = encoder.encode(tokenId);
+                      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                      const hashArray = Array.from(new Uint8Array(hashBuffer));
+                      hashKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 10);
+                    } catch (error) {
+                      const tokenId = metadata.tokenId || metadata.id || cid;
+                      hashKey = tokenId.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
+                    }
+                    
+                    // Look for price data
+                    const priceKey = `nft_${hashKey}_price`;
+                    if (account.data_attr && account.data_attr[priceKey]) {
+                      const priceInStroops = Buffer.from(account.data_attr[priceKey] as string, 'base64').toString('utf8');
+                      price = (parseInt(priceInStroops) / 10000000).toString();
+                      isListed = true;
+                      console.log(`Found listed NFT with price: ${price} XLM`);
+                    }
+                  } catch (accountError) {
+                    console.warn('Error checking if NFT is listed:', accountError);
+                  }
+                  
+                  // For NFTs we found, include them whether listed or not
+                  // but mark them appropriately so the UI can filter them
+                  nfts.push({
+                    ...metadata,
+                    id: metadata.id || tx.hash,
+                    transactionHash: tx.hash,
+                    created_at: tx.created_at,
+                    price: isListed ? price : '100', // Use actual price if listed, otherwise placeholder
+                    tokenId: metadata.tokenId || tx.hash,
+                    owner: owner,
+                    isListed: isListed
+                  });
+                  
+                  processedCount++;
+                } catch (error) {
+                  console.error('Error processing NFT:', error);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error processing transaction:', error);
+          }
+        }
+      }
+      
+      console.log(`Found ${nfts.length} marketplace NFTs`);
+      
+      // Return NFTs sorted by creation date
+      return nfts.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+        const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+    } catch (error) {
+      console.error('Error fetching marketplace NFTs:', error);
+      return [];  // Return empty array instead of throwing to prevent errors on the frontend
+    }
+  }
+
+  async getNFTsReceivedByUser(address: string): Promise<NFTMetadata[]> {
+    try {
+      await this.ensureInitialized();
+      
+      // Get account operations that include NFT transfers to this address
+      const operations = await this.server!.operations()
+        .forAccount(address)
+        .limit(200)
+        .order('desc')
+        .call();
+
+      const receivedNFTs: NFTMetadata[] = [];
+      const processedIds = new Set();
+
+      // Process operations to find NFT transfers to this user
+      for (const op of operations.records) {
+        try {
+          if (op.type === 'manage_data' && 
+              (op.name.includes('_transfer') || op.name.includes('_owner'))) {
+            
+            // Convert op.value to string before comparison
+            const opValue = typeof op.value === 'string' 
+              ? op.value 
+              : op.value instanceof Buffer 
+                ? op.value.toString('utf8') 
+                : String(op.value);
+                
+            if (opValue === address) {
+              // Extract the token ID from the operation name
+              const nameParts = op.name.split('_');
+              if (nameParts.length >= 2) {
+                const tokenId = nameParts[1]; // The part after 'nft_'
+                
+                // Skip if we've already processed this ID
+                if (processedIds.has(tokenId)) continue;
+                processedIds.add(tokenId);
+                
+                // Get the source account (sender)
+                const source = op.source_account || '';
+                if (source === address) continue; // Skip if sent by self
+                
+                // Find the metadata CID in the user's account
+                const account = await this.server!.loadAccount(address);
+                let metadataCID = '';
+                
+                for (const [key, value] of Object.entries(account.data_attr || {})) {
+                  if (key.startsWith('nft_metadata_cid')) {
+                    try {
+                      const cid = Buffer.from(value as string, 'base64').toString('utf8');
+                      try {
+                        const metadata = await this.getNFTMetadata(cid);
+                        if (metadata.tokenId === tokenId || 
+                            metadata.id === tokenId ||
+                            metadata.transactionHash === tokenId) {
+                          metadataCID = cid;
+                          break;
+                        }
+                      } catch (metadataError) {
+                        console.warn(`Could not fetch metadata for ${cid}:`, metadataError);
+                      }
+                    } catch (error) {
+                      console.error('Error checking metadata CID:', error);
+                    }
+                  }
+                }
+                
+                // If we found the metadata, add it to received NFTs
+                if (metadataCID) {
+                  try {
+                    const metadata = await this.getNFTMetadata(metadataCID);
+                    metadata.tokenId = tokenId;
+                    receivedNFTs.push({
+                      ...metadata,
+                      transactionHash: op.transaction_hash,
+                      // Add received timestamp
+                      created_at: op.created_at
+                    });
+                  } catch (error) {
+                    console.error(`Error fetching metadata for received NFT ${tokenId}:`, error);
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error processing operation:', error);
+        }
+      }
+
+      return receivedNFTs;
+    } catch (error) {
+      console.error('Error fetching received NFTs:', error);
+      return [];
+    }
+  }
+
+  async getTransactionHistory(address: string): Promise<any[]> {
+    try {
+      await this.ensureInitialized();
+      
+      // Get all transactions for this account
+      const transactions = await this.server!.transactions()
+        .forAccount(address)
+        .limit(100)
+        .order('desc')
+        .call();
+      
+      const history: any[] = [];
+      
+      // Process each transaction
+      for (const tx of transactions.records) {
+        try {
+          const operations = await tx.operations();
+          let transactionType = 'unknown';
+          let details: any = {};
+          
+          // Analyze operations to determine transaction type
+          for (const op of operations.records) {
+            // NFT Mint
+            if (op.type === 'manage_data' && op.name === 'nft_metadata_cid') {
+              transactionType = 'mint';
+              details.cid = op.value;
+              
+              // Try to get metadata
+              try {
+                const value = op.value as unknown as Buffer;
+                const cid = value.toString('utf8');
+                const metadata = await this.getNFTMetadata(cid);
+                details.metadata = metadata;
+              } catch (error) {
+                console.warn('Could not fetch metadata for minted NFT:', error);
+              }
+            }
+            // NFT Transfer (sender)
+            else if (op.type === 'manage_data' && 
+                op.name.includes('_transfer') && 
+                op.source_account === address) {
+              transactionType = 'transfer_sent';
+              details.recipient = op.value;
+              details.tokenId = op.name.split('_')[1];
+            }
+            // NFT Transfer (recipient)
+            else if (op.type === 'manage_data' && op.name.includes('_transfer')) {
+              // Convert op.value to string before comparison
+              const opValue = typeof op.value === 'string' 
+                ? op.value 
+                : op.value instanceof Buffer 
+                  ? op.value.toString('utf8') 
+                  : String(op.value);
+                  
+              if (opValue === address) {
+                transactionType = 'transfer_received';
+                details.sender = op.source_account;
+                details.tokenId = op.name.split('_')[1];
+              }
+            }
+            // NFT Listed
+            else if (op.type === 'manage_data' && 
+                op.name.includes('_price') && 
+                op.value !== null) {
+              transactionType = 'list';
+              details.tokenId = op.name.split('_')[1];
+              try {
+                const priceValue = op.value as unknown as Buffer;
+                const priceInStroops = priceValue.toString('utf8');
+                details.price = (parseInt(priceInStroops) / 10000000).toString();
+              } catch (error) {
+                console.warn('Could not parse price:', error);
+              }
+            }
+            // NFT Delisted
+            else if (op.type === 'manage_data' && 
+                op.name.includes('_price') && 
+                op.value === null) {
+              transactionType = 'delist';
+              details.tokenId = op.name.split('_')[1];
+            }
+          }
+          
+          history.push({
+            id: tx.id,
+            hash: tx.hash,
+            type: transactionType,
+            details,
+            timestamp: tx.created_at,
+            ledger: tx.ledger,
+            fee_paid: tx.fee_charged,
+          });
+        } catch (error) {
+          console.error('Error processing transaction history item:', error);
+        }
+      }
+      
+      return history;
+    } catch (error) {
+      console.error('Error fetching transaction history:', error);
+      return [];
     }
   }
 }

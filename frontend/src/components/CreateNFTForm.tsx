@@ -5,6 +5,7 @@ import { nftService } from '@/services/nft.service';
 import styles from '@/styles/CreateNFT.module.css';
 import { FiUpload } from 'react-icons/fi';
 import { useRouter } from 'next/router';
+import { NFT_CONFIG } from '@/config/nft.config';
 
 interface FormData {
   name: string;
@@ -21,7 +22,7 @@ const CreateNFTForm: React.FC = () => {
     name: '',
     description: '',
     price: '',
-    royalty: '',
+    royalty: '2.5',
     collection: ''
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -68,9 +69,9 @@ const CreateNFTForm: React.FC = () => {
       if (!formData.description.trim()) {
         throw new Error('Please enter a description for your NFT');
       }
-
-      // Validate price and royalty using NFT service
-      nftService.validateNFTParams(formData.price, formData.royalty);
+      if (!publicKey) {
+        throw new Error('Please connect your wallet to create an NFT');
+      }
 
       return true;
     } catch (error) {
@@ -88,35 +89,28 @@ const CreateNFTForm: React.FC = () => {
     setError('');
     setSuccess('');
 
-    if (!validateForm() || !imageFile) return;
+    if (!validateForm() || !imageFile || !publicKey) return;
 
     try {
       setIsCreating(true);
 
-      const result = await nftService.createNFT(
-        imageFile,
-        {
-          name: formData.name,
-          description: formData.description,
-          attributes: formData.collection ? [
-            {
-              trait_type: 'Collection',
-              value: formData.collection
-            }
-          ] : undefined
-        },
-        formData.price,
-        formData.royalty
-      );
+      // Using the same method signature as the old CreateNFT component
+      const result = await nftService.createNFT({
+        name: formData.name,
+        description: formData.description,
+        imageFile: imageFile,
+        publicKey: publicKey,
+        royaltyPercentage: parseFloat(formData.royalty)
+      });
 
-      setSuccess('NFT created successfully! Redirecting to your NFTs page...');
+      setSuccess(`NFT created successfully! Transaction hash: ${result.transactionHash}`);
       
       // Reset form
       setFormData({
         name: '',
         description: '',
         price: '',
-        royalty: '',
+        royalty: '2.5',
         collection: ''
       });
       setImageFile(null);
@@ -202,8 +196,8 @@ const CreateNFTForm: React.FC = () => {
               placeholder="Enter price in XLM"
               min="0"
               step="0.000001"
-              required
             />
+            <small>Optional - You can set this when listing</small>
           </div>
 
           <div className={styles.formGroup}>
@@ -216,10 +210,11 @@ const CreateNFTForm: React.FC = () => {
               onChange={handleInputChange}
               placeholder="Enter royalty percentage"
               min="0"
-              max="15"
+              max={NFT_CONFIG.MAX_ROYALTY || 15}
               step="0.1"
               required
             />
+            <small>You'll receive this % of future sales</small>
           </div>
         </div>
 

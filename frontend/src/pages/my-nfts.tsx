@@ -1,11 +1,14 @@
 import WalletRequired from '@/components/WalletRequired';
 import MyNFTsList from '@/components/MyNFTsList';
+import Layout from '@/components/Layout';
 
 const MyNFTsPage = () => {
   return (
-    <WalletRequired>
-      <MyNFTsList />
-    </WalletRequired>
+    <Layout title="My NFTs | Stellar NFT Marketplace">
+      <WalletRequired>
+        <MyNFTsList />
+      </WalletRequired>
+    </Layout>
   );
 };
 

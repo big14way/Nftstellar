@@ -1,0 +1,138 @@
+.nftCard {
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #1a1a1a;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.nftCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+}
+
+.imageContainer {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  overflow: hidden;
+  background-color: #0f0f0f;
+}
+
+.nftImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.nftCard:hover .nftImage {
+  transform: scale(1.05);
+}
+
+.cardContent {
+  padding: 16px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.nftName {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nftCollection {
+  font-size: 14px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.priceContainer {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  padding: 10px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.priceLabel {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.priceValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: #10b981; /* Green color for price */
+}
+
+.actionsContainer {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.delistButton, .listButton, .transferButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-align: center;
+  width: 100%;
+}
+
+.delistButton {
+  background-color: #f59e0b; /* Amber color */
+  color: #000;
+}
+
+.delistButton:hover {
+  background-color: #d97706; /* Darker amber */
+}
+
+.listButton {
+  background-color: #3b82f6; /* Blue color */
+  color: white;
+}
+
+.listButton:hover {
+  background-color: #2563eb; /* Darker blue */
+}
+
+.transferButton {
+  background-color: #6366f1; /* Indigo color */
+  color: white;
+}
+
+.transferButton:hover {
+  background-color: #4f46e5; /* Darker indigo */
+}
+
+@media (max-width: 768px) {
+  .nftName {
+    font-size: 16px;
+  }
+  
+  .priceValue {
+    font-size: 16px;
+  }
+  
+  .actionsContainer {
+    flex-direction: column;
+  }
+} 
