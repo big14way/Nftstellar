@@ -79,12 +79,20 @@ const MyNFTs: React.FC<MyNFTsProps> = ({ nfts, isLoading }) => {
         {nfts.map((nft) => (
           <NFTCard
             key={nft.tokenId}
-            tokenId={nft.tokenId}
-            owner={nft.owner}
-            uri={nft.uri}
-            isOwned={true}
-            isListing={listingTokenId === nft.tokenId}
-            onList={() => openListingModal(nft.tokenId)}
+            nft={{
+              id: nft.tokenId,
+              tokenId: nft.tokenId,
+              name: `NFT #${nft.tokenId}`,
+              description: '',
+              image: nft.uri,
+              owner: nft.owner,
+              creator: nft.owner,
+              metadata: {}
+            }}
+            showListButton={true}
+            onListClick={() => openListingModal(nft.tokenId)}
+            showDelist={false}
+            showTransferButton={false}
           />
         ))}
       </div>
