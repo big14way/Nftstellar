@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { NFTListing } from '../sdk';
+import { NFTListing } from '../types/nft';
 import { useNFTMarketplace } from '../hooks/useNFTMarketplace';
 import AppContext from '../utils/AppContext';
 import NFTCard from './NFTCard';
@@ -67,16 +67,13 @@ const ListedNFTs: React.FC<ListedNFTsProps> = ({ nfts, isLoading, isConnected })
   return (
     <div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {nfts.map((nft) => (
+        {nfts.map((listing) => (
           <NFTCard
-            key={nft.tokenId}
-            tokenId={nft.tokenId}
-            price={nft.price}
-            seller={nft.seller}
-            isListed={true}
-            isBuying={buyingTokenId === nft.tokenId}
-            onBuy={() => handleBuyNFT(nft.tokenId)}
-            disabled={!isConnected}
+            key={listing.nft.tokenId}
+            nft={listing.nft}
+            showDelist={false}
+            showListButton={false}
+            showTransferButton={false}
           />
         ))}
       </div>
