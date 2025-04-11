@@ -1,4 +1,4 @@
-import { Contract, Networks, SorobanRpc, TransactionBuilder, xdr, Server, TimeoutInfinite, scValToNative, nativeToScVal } from '@stellar/stellar-sdk';
+import { Contract, Networks } from '@stellar/stellar-sdk';
 import { NFTMarketplaceConfig, TransactionResult } from './types';
 
 export const DEFAULT_NETWORK_CONFIG = {
@@ -14,66 +14,25 @@ export const DEFAULT_NETWORK_CONFIG = {
   }
 };
 
-export function getNetworkConfig(network: 'testnet' | 'mainnet'): {
-  networkPassphrase: string;
-  rpcUrl: string;
-  ipfsGateway: string;
-} {
+export function getNetworkConfig(network: 'testnet' | 'mainnet') {
   return DEFAULT_NETWORK_CONFIG[network];
 }
 
-export async function getServer(rpcUrl: string): Promise<SorobanRpc.Server> {
-  return new SorobanRpc.Server(rpcUrl, { allowHttp: true });
-}
-
-export function getContract(
-  contractId: string,
-  server: SorobanRpc.Server
-): Contract {
-  return new Contract(contractId);
-}
-
-export async function getContractValue<T>(
-  server: SorobanRpc.Server,
-  contractId: string,
-  method: string,
-  params: any[] = []
-): Promise<T> {
-  try {
-    const contract = new Contract(contractId);
-    const result = await contract.call(server, method, ...params);
-    return scValToNative(result) as T;
-  } catch (error) {
-    console.error(`Error getting contract value for ${method}:`, error);
-    throw error;
-  }
-}
-
 export function parseContractError(error: any): string {
-  if (error.message) {
-    return error.message;
-  }
-  
   if (typeof error === 'string') {
     return error;
   }
   
-  return 'Unknown contract error';
-}
-
-export function ipfsUriToHttpUrl(uri: string, ipfsGateway: string): string {
-  if (!uri) return '';
-  
-  // Handle ipfs:// protocol
-  if (uri.startsWith('ipfs://')) {
-    const ipfsHash = uri.replace('ipfs://', '');
-    return `${ipfsGateway}${ipfsHash}`;
+  if (error instanceof Error) {
+    return error.message;
   }
   
-  // Handle ipfs:// protocol missing the //
-  if (uri.startsWith('ipfs:')) {
-    const ipfsHash = uri.replace('ipfs:', '');
-    return `${ipfsGateway}${ipfsHash}`;
+  return 'An unknown error occurred';
+}
+
+export function ipfsUriToHttpUrl(uri: string, gateway: string = 'https://ipfs.io/ipfs/'): string {
+  if (!uri) {
+    return '';
   }
   
   // If it's already an HTTP URL, return as is
@@ -81,17 +40,24 @@ export function ipfsUriToHttpUrl(uri: string, ipfsGateway: string): string {
     return uri;
   }
   
-  // Default case: assume it's an IPFS CID
-  return `${ipfsGateway}${uri}`;
+  // Remove ipfs:// prefix if present
+  const cid = uri.replace('ipfs://', '');
+  
+  // Ensure gateway ends with /
+  const normalizedGateway = gateway.endsWith('/') ? gateway : `${gateway}/`;
+  
+  return `${normalizedGateway}${cid}`;
 }
 
-export async function fetchMetadata<T = any>(uri: string, ipfsGateway: string): Promise<T> {
+export async function fetchMetadata(uri: string, gateway?: string): Promise<any> {
   try {
-    const url = ipfsUriToHttpUrl(uri, ipfsGateway);
+    const url = ipfsUriToHttpUrl(uri, gateway);
     const response = await fetch(url);
+    
     if (!response.ok) {
-      throw new Error(`Failed to fetch metadata: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+    
     return await response.json();
   } catch (error) {
     console.error('Error fetching metadata:', error);

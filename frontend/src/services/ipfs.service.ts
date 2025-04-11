@@ -1,6 +1,17 @@
 import axios from 'axios';
 import { NFT_CONFIG } from '@/config/nft.config';
 
+interface MetadataProperty {
+  type: string;
+  maxLength?: number;
+  pattern?: string;
+}
+
+interface MetadataSchema {
+  required: string[];
+  properties: Record<string, MetadataProperty>;
+}
+
 class IPFSService {
   private readonly apiKey: string;
   private readonly apiSecret: string;
@@ -75,18 +86,17 @@ class IPFSService {
       formData.append('pinataMetadata', metadata);
 
       const options = {
-        headers: {
-          ...this.getHeaders(),
-          'Content-Type': 'multipart/form-data'
-        },
+        headers: this.getHeaders('multipart/form-data'),
         maxBodyLength: Infinity
       };
 
+      // Log headers safely by casting to Record<string, string>
+      const headers = options.headers as Record<string, string>;
       console.log('Request headers:', {
-        ...options.headers,
-        Authorization: options.headers.Authorization ? 'Bearer [REDACTED]' : undefined,
-        pinata_api_key: options.headers.pinata_api_key ? '[REDACTED]' : undefined,
-        pinata_secret_api_key: options.headers.pinata_secret_api_key ? '[REDACTED]' : undefined
+        ...headers,
+        Authorization: headers['Authorization'] ? 'Bearer [REDACTED]' : undefined,
+        pinata_api_key: headers['pinata_api_key'] ? '[REDACTED]' : undefined,
+        pinata_secret_api_key: headers['pinata_secret_api_key'] ? '[REDACTED]' : undefined
       });
 
       // Upload to Pinata
@@ -185,7 +195,7 @@ class IPFSService {
    * @param metadata The metadata object to validate
    */
   private validateMetadata(metadata: any): void {
-    const { required, properties } = NFT_CONFIG.METADATA_SCHEMA;
+    const { required, properties } = NFT_CONFIG.METADATA_SCHEMA as MetadataSchema;
 
     // Check required fields
     for (const field of required) {
@@ -196,23 +206,17 @@ class IPFSService {
 
     // Validate property types and constraints
     for (const [key, value] of Object.entries(metadata)) {
-      const schema = properties[key as keyof typeof properties];
+      const schema = properties[key];
       if (!schema) continue;
 
-      if (schema.type === 'string') {
-        if (typeof value !== 'string') {
-          throw new Error(`${key} must be a string`);
-        }
-        if (schema.maxLength && value.length > schema.maxLength) {
-          throw new Error(`${key} exceeds maximum length of ${schema.maxLength}`);
-        }
-        if (schema.pattern && !new RegExp(schema.pattern).test(value)) {
-          throw new Error(`${key} does not match required pattern`);
-        }
+      if (schema.type === 'string' && typeof value !== 'string') {
+        throw new Error(`${key} must be a string`);
       }
-
-      if (schema.type === 'array' && !Array.isArray(value)) {
-        throw new Error(`${key} must be an array`);
+      if (schema.maxLength && typeof value === 'string' && value.length > schema.maxLength) {
+        throw new Error(`${key} exceeds maximum length of ${schema.maxLength}`);
+      }
+      if (schema.pattern && typeof value === 'string' && !new RegExp(schema.pattern).test(value)) {
+        throw new Error(`${key} does not match required pattern: ${schema.pattern}`);
       }
     }
   }

@@ -5,16 +5,7 @@ import NFTGrid from '@/components/NFTGrid';
 import { useWallet } from '@/contexts/WalletContext';
 import { nftService } from '@/services/nft.service';
 import Layout from '@/components/Layout';
-
-interface NFT {
-  id: string;
-  title: string;
-  image: string;
-  price: string;
-  creator: string;
-  likes?: number;
-  isListed?: boolean;
-}
+import { NFT } from '@/types/nft';
 
 const Home: React.FC = () => {
   const { isConnected, publicKey } = useWallet();
@@ -36,13 +27,17 @@ const Home: React.FC = () => {
           
           if (marketplaceNFTs && marketplaceNFTs.length > 0) {
             nfts = marketplaceNFTs.slice(0, 6).map(nft => ({
-              id: nft.id || nft.transactionHash || '',
-              title: nft.name || 'Untitled NFT',
+              id: nft.id || '',
+              tokenId: nft.tokenId || nft.id || '',
+              name: nft.name || 'Untitled NFT',
+              description: nft.description || '',
               image: nft.image || '/nft-placeholder.png',
-              price: nft.price?.toString() || '0',
+              owner: nft.owner || '',
               creator: nft.attributes?.find(attr => attr.trait_type === 'creator')?.value?.toString() || '',
-              likes: Math.floor(Math.random() * 100),
-              isListed: true
+              metadata: {
+                ...nft,
+                attributes: nft.attributes || []
+              }
             }));
           }
         } catch (error) {
@@ -51,30 +46,48 @@ const Home: React.FC = () => {
           nfts = [
             {
               id: '5',
-              title: 'Stellar Genesis #1',
+              tokenId: '5',
+              name: 'Stellar Genesis #1',
+              description: 'The first NFT on our platform',
               image: '/nft-placeholder.png',
-              price: '500',
+              owner: '0xf234...a678',
               creator: '0xf234...a678',
-              likes: 120,
-              isListed: true,
+              metadata: {
+                name: 'Stellar Genesis #1',
+                description: 'The first NFT on our platform',
+                image: '/nft-placeholder.png',
+                attributes: []
+              }
             },
             {
               id: '6',
-              title: 'Space Explorer',
+              tokenId: '6',
+              name: 'Space Explorer',
+              description: 'A journey through space',
               image: '/nft-placeholder.png',
-              price: '300',
+              owner: '0xe765...b321',
               creator: '0xe765...b321',
-              likes: 85,
-              isListed: true,
+              metadata: {
+                name: 'Space Explorer',
+                description: 'A journey through space',
+                image: '/nft-placeholder.png',
+                attributes: []
+              }
             },
             {
               id: '7',
-              title: 'Cosmic Collection #3',
+              tokenId: '7',
+              name: 'Cosmic Collection #3',
+              description: 'Part of the cosmic collection',
               image: '/nft-placeholder.png',
-              price: '250',
+              owner: '0xd876...c234',
               creator: '0xd876...c234',
-              likes: 67,
-              isListed: true,
+              metadata: {
+                name: 'Cosmic Collection #3',
+                description: 'Part of the cosmic collection',
+                image: '/nft-placeholder.png',
+                attributes: []
+              }
             }
           ];
         }

@@ -1,112 +1,55 @@
-import { useState } from 'react';
-import { NFTListing, ListingStatus } from '../types/nft';
+import { useState, useContext } from 'react';
+import { NFTListing } from '../types/nft';
 import { MarketplaceService } from '../services/marketplace';
 import { useWallet } from '../hooks/useWallet';
-import { BigNumber } from 'bignumber.js';
+import { formatBalance } from '../utils/format';
+import AppContext from '../utils/AppContext';
 
 interface NFTDetailsProps {
   listing: NFTListing;
   onSuccess: () => void;
+  onError: (error: string) => void;
 }
 
-const NFTDetails: React.FC<NFTDetailsProps> = ({ listing, onSuccess }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const { sdk, publicKey } = useWallet();
+export const NFTDetails: React.FC<NFTDetailsProps> = ({ listing, onSuccess, onError }) => {
+  const [isBuying, setIsBuying] = useState(false);
+  const { client } = useContext(AppContext);
+  const { publicKey } = useWallet();
 
   const handleBuyNFT = async () => {
-    setError('');
-    setLoading(true);
+    if (!client || !publicKey) {
+      onError('Please connect your wallet first');
+      return;
+    }
+
+    setIsBuying(true);
 
     try {
-      const marketplaceService = new MarketplaceService(sdk);
-      await marketplaceService.buyNFT(listing);
+      await client.buyNFT(listing.nft.tokenId, publicKey);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to buy NFT');
+      console.error('Error buying NFT:', err);
+      onError(err instanceof Error ? err.message : 'Failed to buy NFT');
     } finally {
-      setLoading(false);
+      setIsBuying(false);
     }
   };
-
-  const handleCancelListing = async () => {
-    setError('');
-    setLoading(true);
-
-    try {
-      const marketplaceService = new MarketplaceService(sdk);
-      await marketplaceService.cancelListing(listing);
-      onSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to cancel listing');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isOwner = listing.seller === publicKey;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <img
-        src={listing.nft.image}
-        alt={listing.nft.name}
-        className="w-full h-64 object-cover"
-      />
-      
-      <div className="p-6">
-        <h2 className="text-2xl font-bold mb-2">{listing.nft.name}</h2>
-        <p className="text-gray-600 mb-4">{listing.nft.description}</p>
-
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div>
-            <p className="text-sm text-gray-500">Creator</p>
-            <p className="font-medium">{listing.nft.creator}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Owner</p>
-            <p className="font-medium">{listing.nft.owner}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Price</p>
-            <p className="font-medium">{listing.price} XLM</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Status</p>
-            <p className="font-medium">{listing.status}</p>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-4 text-red-500 text-sm">
-            {error}
-          </div>
-        )}
-
-        {listing.status === ListingStatus.ACTIVE && (
-          <div className="flex justify-end gap-4">
-            {isOwner ? (
-              <button
-                onClick={handleCancelListing}
-                disabled={loading}
-                className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
-              >
-                {loading ? 'Cancelling...' : 'Cancel Listing'}
-              </button>
-            ) : (
-              <button
-                onClick={handleBuyNFT}
-                disabled={loading}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-              >
-                {loading ? 'Buying...' : 'Buy Now'}
-              </button>
-            )}
-          </div>
-        )}
+    <div className="p-4 bg-white rounded-lg shadow">
+      <h3 className="text-lg font-semibold mb-2">{listing.nft.name}</h3>
+      <div className="mb-4">
+        <p>Price: {formatBalance(listing.price)} XLM</p>
+        <p>Seller: {listing.seller}</p>
+        <p>Creator: {listing.nft.creator}</p>
       </div>
+      <button
+        onClick={handleBuyNFT}
+        disabled={isBuying}
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-gray-400"
+      >
+        {isBuying ? 'Processing...' : 'Buy Now'}
+      </button>
     </div>
   );
-};
-
-export default NFTDetails; 
+}; 

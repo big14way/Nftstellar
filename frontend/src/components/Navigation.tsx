@@ -7,7 +7,7 @@ import { useAppContext } from '@/providers/AppContext';
 
 const Navigation = () => {
   const router = useRouter();
-  const { isWalletConnected, walletAddress, disconnectWallet } = useAppContext();
+  const { state, dispatch } = useAppContext();
 
   const links = [
     { href: '/', label: 'Home', icon: <FaHome /> },
@@ -15,6 +15,13 @@ const Navigation = () => {
     { href: '/create', label: 'Create NFT', icon: <FaPlus /> },
     { href: '/my-nfts', label: 'My NFTs', icon: <FaUserCircle /> },
   ];
+
+  const handleDisconnect = () => {
+    dispatch({
+      type: 'SET_WALLET_CONNECTION',
+      payload: { isConnected: false, walletKey: null }
+    });
+  };
 
   return (
     <nav className={styles.navigation}>
@@ -32,12 +39,12 @@ const Navigation = () => {
           </Link>
         ))}
       </div>
-      {isWalletConnected && (
+      {state.isConnected && state.walletKey && (
         <div className={styles.walletInfo}>
           <span className={styles.address}>
-            {walletAddress?.slice(0, 8)}...{walletAddress?.slice(-8)}
+            {state.walletKey.slice(0, 8)}...{state.walletKey.slice(-8)}
           </span>
-          <button onClick={disconnectWallet} className={styles.disconnectButton}>
+          <button onClick={handleDisconnect} className={styles.disconnectButton}>
             Disconnect
           </button>
         </div>

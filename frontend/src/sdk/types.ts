@@ -1,5 +1,3 @@
-import { SorobanRpc } from '@stellar/stellar-sdk';
-
 export interface StellarSdk {
   getListedNFTs(): Promise<NFTListing[]>;
   createNFTListing(params: { tokenId: string; price: string }): Promise<{ id: string }>;
@@ -69,5 +67,5 @@ export interface TransactionState {
   status: TransactionStatus;
   error?: string;
   hash?: string;
-  result?: SorobanRpc.Api.GetTransactionResponse;
+  result?: any;
 } 

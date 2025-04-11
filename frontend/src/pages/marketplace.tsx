@@ -51,7 +51,7 @@ const mockTraits = [
 ];
 
 const MarketplacePage = () => {
-  const { publicKey, connected } = useWallet();
+  const { publicKey, isConnected } = useWallet();
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,23 @@ const MarketplacePage = () => {
       try {
         const fetchedNFTs = await nftService.getMarketplaceNFTs(50);
         console.log('Fetched marketplace NFTs:', fetchedNFTs);
-        setNfts(fetchedNFTs);
+        
+        // Convert NFTMetadata to NFT
+        const convertedNFTs: NFT[] = fetchedNFTs.map(nft => ({
+          id: nft.id || '',
+          tokenId: nft.tokenId || nft.id || '',
+          name: nft.name || 'Untitled NFT',
+          description: nft.description || '',
+          image: nft.image || '/nft-placeholder.png',
+          owner: nft.owner || '',
+          creator: nft.attributes?.find(attr => attr.trait_type === 'creator')?.value?.toString() || '',
+          metadata: {
+            ...nft,
+            attributes: nft.attributes || []
+          }
+        }));
+        
+        setNfts(convertedNFTs);
       } catch (error) {
         console.error('Error fetching marketplace NFTs:', error);
         setError('Failed to load NFTs. Please try again later.');
@@ -83,7 +99,7 @@ const MarketplacePage = () => {
   }, []);
 
   const handleBuy = (nft: NFT) => {
-    if (!connected) {
+    if (!isConnected) {
       alert('Please connect your wallet to buy NFTs');
       return;
     }
@@ -112,7 +128,23 @@ const MarketplacePage = () => {
       setLoading(true);
       try {
         const fetchedNFTs = await nftService.getMarketplaceNFTs(50);
-        setNfts(fetchedNFTs);
+        
+        // Convert NFTMetadata to NFT
+        const convertedNFTs: NFT[] = fetchedNFTs.map(nft => ({
+          id: nft.id || '',
+          tokenId: nft.tokenId || nft.id || '',
+          name: nft.name || 'Untitled NFT',
+          description: nft.description || '',
+          image: nft.image || '/nft-placeholder.png',
+          owner: nft.owner || '',
+          creator: nft.attributes?.find(attr => attr.trait_type === 'creator')?.value?.toString() || '',
+          metadata: {
+            ...nft,
+            attributes: nft.attributes || []
+          }
+        }));
+        
+        setNfts(convertedNFTs);
       } catch (error) {
         console.error('Error refreshing marketplace NFTs:', error);
       } finally {
@@ -155,13 +187,13 @@ const MarketplacePage = () => {
   // Sort NFTs
   const sortedNFTs = [...filteredNFTs].sort((a, b) => {
     if (sortBy === 'price_asc') {
-      return parseFloat(a.price || '0') - parseFloat(b.price || '0');
+      return parseFloat(a.metadata.price || '0') - parseFloat(b.metadata.price || '0');
     } else if (sortBy === 'price_desc') {
-      return parseFloat(b.price || '0') - parseFloat(a.price || '0');
+      return parseFloat(b.metadata.price || '0') - parseFloat(a.metadata.price || '0');
     } else {
       // newest first
-      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      const dateA = a.metadata.created_at ? new Date(a.metadata.created_at).getTime() : 0;
+      const dateB = b.metadata.created_at ? new Date(b.metadata.created_at).getTime() : 0;
       return dateB - dateA;
     }
   });
@@ -196,7 +228,7 @@ const MarketplacePage = () => {
                 className={styles.filterSelect}
               >
                 <option value="all">All NFTs</option>
-                {connected && <option value="my_listings">My Listings</option>}
+                {isConnected && <option value="my_listings">My Listings</option>}
               </select>
               
               <select 
@@ -275,9 +307,9 @@ const MarketplacePage = () => {
                       <button
                         className={styles.buyButton}
                         onClick={() => handleBuy(nft)}
-                        disabled={!connected || nft.owner === publicKey}
+                        disabled={!isConnected || nft.owner === publicKey}
                       >
-                        {!connected 
+                        {!isConnected 
                           ? 'Connect Wallet to Buy' 
                           : nft.owner === publicKey 
                             ? 'Your Listing' 

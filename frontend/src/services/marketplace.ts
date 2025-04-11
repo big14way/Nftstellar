@@ -1,17 +1,47 @@
 import { NFT, NFTListing, ListingStatus, ListingFilters } from '../types/nft';
-import { StellarSdk } from '../sdk/stellar';
-import { BigNumber } from 'bignumber.js';
+import { StellarSdkImpl } from '../sdk/stellar';
+import { NFTListing as SdkNFTListing } from '../sdk/types';
+import BigNumber from 'bignumber.js';
+
+interface NFTAttribute {
+  trait_type: string;
+  value: string | number;
+}
 
 export class MarketplaceService {
-  private readonly sdk: StellarSdk;
+  private sdk: StellarSdkImpl;
 
-  constructor(sdk: StellarSdk) {
+  constructor(sdk: StellarSdkImpl) {
     this.sdk = sdk;
   }
 
-  async createListing(nft: NFT, price: string): Promise<NFTListing> {
+  private convertSdkListingToFrontend(sdkListing: SdkNFTListing): NFTListing {
+    // Create a basic NFT object from the SDK listing
+    const nft: NFT = {
+      id: sdkListing.tokenId, // Use tokenId as id since SDK doesn't provide a separate id
+      tokenId: sdkListing.tokenId,
+      name: `NFT #${sdkListing.tokenId}`, // Default name if not provided
+      description: '', // Default empty description
+      image: '', // Default empty image URL
+      owner: sdkListing.seller, // Use seller as owner
+      creator: sdkListing.seller, // Use seller as creator since SDK doesn't provide creator
+      metadata: {}, // Default empty metadata
+    };
+
+    // Create the frontend listing object
+    return {
+      id: sdkListing.tokenId, // Use tokenId as id since SDK doesn't provide a separate id
+      nft,
+      price: sdkListing.price,
+      seller: sdkListing.seller,
+      status: ListingStatus.ACTIVE, // Default to active since SDK doesn't provide status
+      createdAt: new Date(), // Default to current date since SDK doesn't provide timestamps
+      updatedAt: new Date(),
+    };
+  }
+
+  async listNFT(nft: NFT, price: string): Promise<NFTListing> {
     try {
-      // Create listing transaction
       const listing = await this.sdk.createNFTListing({
         tokenId: nft.tokenId,
         price: new BigNumber(price).toString(),
@@ -27,120 +57,8 @@ export class MarketplaceService {
         updatedAt: new Date(),
       };
     } catch (error) {
-      console.error('Error creating listing:', error);
-      throw new Error('Failed to create NFT listing');
-    }
-  }
-
-  async getListings(filters: ListingFilters = {}): Promise<NFTListing[]> {
-    try {
-      // Fetch all listings from the SDK (in a real implementation this would use the filters)
-      const fetchedListings = await this.sdk.getListedNFTs();
-      
-      // Convert to the app's NFTListing format
-      let listings: NFTListing[] = fetchedListings.map(listing => ({
-        id: listing.tokenId,
-        nft: {
-          id: listing.tokenId,
-          tokenId: listing.tokenId,
-          name: `NFT #${listing.tokenId}`, // This would ideally be fetched from metadata
-          description: 'NFT description', // This would ideally be fetched from metadata
-          image: '/nft-placeholder.png', // This would ideally be fetched from metadata
-          owner: listing.seller,
-          creator: listing.seller, // This would ideally be fetched from metadata
-          metadata: {},
-        },
-        price: listing.price,
-        seller: listing.seller,
-        status: ListingStatus.ACTIVE,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-
-      // Apply filters
-      if (filters.status !== undefined) {
-        listings = listings.filter(listing => listing.status === filters.status);
-      }
-
-      if (filters.minPrice !== undefined) {
-        listings = listings.filter(listing => 
-          new BigNumber(listing.price).isGreaterThanOrEqualTo(filters.minPrice || '0')
-        );
-      }
-
-      if (filters.maxPrice !== undefined) {
-        listings = listings.filter(listing => 
-          new BigNumber(listing.price).isLessThanOrEqualTo(filters.maxPrice || '999999999')
-        );
-      }
-
-      if (filters.seller !== undefined) {
-        listings = listings.filter(listing => 
-          listing.seller.toLowerCase() === filters.seller?.toLowerCase()
-        );
-      }
-
-      // Apply search
-      if (filters.searchQuery) {
-        const query = filters.searchQuery.toLowerCase();
-        listings = listings.filter(listing => 
-          listing.nft.name.toLowerCase().includes(query) || 
-          listing.nft.description.toLowerCase().includes(query)
-        );
-      }
-
-      // Apply collection filter if available
-      if (filters.collection) {
-        listings = listings.filter(listing => 
-          listing.nft.metadata.collection === filters.collection
-        );
-      }
-
-      // Apply creator filter if available
-      if (filters.creator) {
-        listings = listings.filter(listing => 
-          listing.nft.creator.toLowerCase() === filters.creator?.toLowerCase()
-        );
-      }
-
-      // Apply trait/attribute filters if available
-      if (filters.traits && filters.traits.length > 0) {
-        listings = listings.filter(listing => {
-          if (!listing.nft.metadata.attributes) return false;
-          
-          // Check if NFT has all the required traits
-          return filters.traits!.every(trait => {
-            const attribute = listing.nft.metadata.attributes.find(
-              attr => attr.trait_type === trait.trait_type
-            );
-            if (!attribute) return false;
-            return attribute.value === trait.value;
-          });
-        });
-      }
-
-      // Apply sorting
-      if (filters.sortBy) {
-        listings.sort((a, b) => {
-          if (filters.sortBy === 'price') {
-            const aPrice = new BigNumber(a.price);
-            const bPrice = new BigNumber(b.price);
-            return filters.sortDirection === 'asc' 
-              ? aPrice.comparedTo(bPrice) 
-              : bPrice.comparedTo(aPrice);
-          } else if (filters.sortBy === 'createdAt') {
-            return filters.sortDirection === 'asc'
-              ? a.createdAt.getTime() - b.createdAt.getTime()
-              : b.createdAt.getTime() - a.createdAt.getTime();
-          }
-          return 0;
-        });
-      }
-
-      return listings;
-    } catch (error) {
-      console.error('Error fetching listings:', error);
-      throw new Error('Failed to fetch NFT listings');
+      console.error('Error listing NFT:', error);
+      throw error;
     }
   }
 
@@ -152,7 +70,7 @@ export class MarketplaceService {
       });
     } catch (error) {
       console.error('Error buying NFT:', error);
-      throw new Error('Failed to buy NFT');
+      throw error;
     }
   }
 
@@ -163,7 +81,73 @@ export class MarketplaceService {
       });
     } catch (error) {
       console.error('Error cancelling listing:', error);
-      throw new Error('Failed to cancel NFT listing');
+      throw error;
     }
+  }
+
+  async getListedNFTs(filters?: ListingFilters): Promise<NFTListing[]> {
+    try {
+      const sdkListings = await this.sdk.getListedNFTs();
+      const frontendListings = sdkListings.map(listing => this.convertSdkListingToFrontend(listing));
+      return this.applyFilters(frontendListings, filters);
+    } catch (error) {
+      console.error('Error getting listed NFTs:', error);
+      throw error;
+    }
+  }
+
+  private applyFilters(listings: NFTListing[], filters?: ListingFilters): NFTListing[] {
+    if (!filters) return listings;
+
+    return listings.filter(listing => {
+      if (filters.status && listing.status !== filters.status) {
+        return false;
+      }
+
+      if (filters.minPrice && new BigNumber(listing.price).lt(filters.minPrice)) {
+        return false;
+      }
+
+      if (filters.maxPrice && new BigNumber(listing.price).gt(filters.maxPrice)) {
+        return false;
+      }
+
+      if (filters.seller && listing.seller !== filters.seller) {
+        return false;
+      }
+
+      if (filters.creator && listing.nft.creator !== filters.creator) {
+        return false;
+      }
+
+      if (filters.collection && listing.nft.collection !== filters.collection) {
+        return false;
+      }
+
+      if (filters.searchQuery) {
+        const query = filters.searchQuery.toLowerCase();
+        const matchesName = listing.nft.name.toLowerCase().includes(query);
+        const matchesDescription = listing.nft.description.toLowerCase().includes(query);
+        if (!matchesName && !matchesDescription) {
+          return false;
+        }
+      }
+
+      if (filters.traits && filters.traits.length > 0) {
+        const nftAttributes = listing.nft.attributes || [];
+        const hasAllTraits = filters.traits.every(trait => {
+          const matchingAttribute = nftAttributes.find(function(attr) {
+            return attr.trait_type === trait.trait_type && 
+                   String(attr.value) === String(trait.value);
+          });
+          return !!matchingAttribute;
+        });
+        if (!hasAllTraits) {
+          return false;
+        }
+      }
+
+      return true;
+    });
   }
 } 

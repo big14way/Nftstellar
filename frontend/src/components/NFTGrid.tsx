@@ -1,15 +1,6 @@
 import React from 'react';
 import NFTCard from './NFTCard';
-
-interface NFT {
-  id: string;
-  title: string;
-  image: string;
-  price: string;
-  creator: string;
-  likes?: number;
-  isListed?: boolean;
-}
+import { NFT } from '../types/nft';
 
 interface NFTGridProps {
   nfts: NFT[];
@@ -47,7 +38,13 @@ const NFTGrid: React.FC<NFTGridProps> = ({ nfts, loading = false }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {nfts.map((nft) => (
-        <NFTCard key={nft.id} {...nft} />
+        <NFTCard
+          key={nft.id}
+          nft={nft}
+          showListButton={false}
+          showDelist={false}
+          showTransferButton={false}
+        />
       ))}
     </div>
   );

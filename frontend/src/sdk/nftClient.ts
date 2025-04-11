@@ -13,7 +13,8 @@ import {
   ipfsUriToHttpUrl,
   fetchMetadata
 } from './utils';
-import { signTransaction } from './walletConnect';
+import { signWithWallet } from './walletConnect';
+import { v4 as uuidv4 } from 'uuid';
 
 // Mock data for development purposes
 const MOCK_METADATA: TokenMetadata = {
@@ -48,6 +49,27 @@ const MOCK_TOKENS: NFTToken[] = [
     uri: "ipfs://QmExample456"
   }
 ];
+
+// Helper functions
+function generateTokenId(): string {
+  return uuidv4();
+}
+
+function generateTokenMetadata(name: string, description: string, baseUri: string): TokenMetadata {
+  return {
+    name,
+    symbol: 'SNFT', // Default symbol for Stellar NFTs
+    description,
+    baseUri
+  };
+}
+
+function generateTokenURI(metadata: TokenMetadata, ipfsGateway: string): string {
+  // In a real implementation, this would upload the metadata to IPFS
+  // For now, we'll just return a mock IPFS URI
+  const mockCID = 'QmMockCID' + Math.random().toString(36).substring(2);
+  return `ipfs://${mockCID}`;
+}
 
 /**
  * NFT Marketplace Client
@@ -303,4 +325,4 @@ export class NFTMarketplaceClient {
       hash: '0x' + Math.random().toString(16).substring(2, 10)
     };
   }
-} 
+}

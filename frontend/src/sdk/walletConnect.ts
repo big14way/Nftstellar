@@ -59,11 +59,11 @@ export const isWalletConnected = async (userInitiated: boolean = false): Promise
       if (userInitiated || storedConnection === 'true') {
         const result = await safeExecute(
           async () => await freighter.isConnected(),
-          { isConnected: false }
+          false
         );
         console.log('isWalletConnected API result:', result);
         
-        if (result && result.isConnected === true) {
+        if (result === true) {
           return true;
         }
       } else {
@@ -112,39 +112,9 @@ export const connectWallet = async (): Promise<string | null> => {
       return null;
     }
     
-    // First try with requestAccess if available (to ensure permission)
+    // Try to get the public key using the API
     try {
-      if (typeof freighter.requestAccess === 'function') {
-        console.log('Requesting access to Freighter wallet...');
-        const accessResult = await freighter.requestAccess();
-        console.log('Access result:', accessResult);
-      }
-    } catch (e) {
-      console.warn('Error requesting access:', e);
-      // Continue anyway, as getAddress might still work
-    }
-    
-    // Direct access to window.freighter if API fails
-    if (typeof window !== 'undefined' && window.freighter) {
-      try {
-        // @ts-ignore - Accessing window.freighter directly
-        if (typeof window.freighter.getPublicKey === 'function') {
-          // @ts-ignore
-          const directKey = await window.freighter.getPublicKey();
-          console.log('Got key directly from window.freighter:', directKey);
-          if (directKey) {
-            localStorage.setItem('walletConnected', 'true');
-            return directKey;
-          }
-        }
-      } catch (e) {
-        console.warn('Error getting key directly from window.freighter:', e);
-      }
-    }
-    
-    // Then try to get the public key using the API
-    try {
-      console.log('Getting address from Freighter API...');
+      console.log('Getting public key from Freighter API...');
       // Since this is a connect request, pass true for userInitiated
       const publicKey = await getUserPublicKey(true);
       if (publicKey) {
@@ -181,18 +151,14 @@ export const getUserPublicKey = async (userInitiated: boolean = false): Promise<
       return null;
     }
     
-    // Try to use the getAddress function from the API
-    if (typeof freighter.getAddress === 'function') {
-      console.log('Calling getAddress...');
-      const response = await freighter.getAddress();
-      console.log('getAddress response:', response);
+    // Try to use the getPublicKey function from the API
+    if (typeof freighter.getPublicKey === 'function') {
+      console.log('Calling getPublicKey...');
+      const publicKey = await freighter.getPublicKey();
+      console.log('getPublicKey response:', publicKey);
       
-      if (response && response.address) {
-        return response.address;
-      }
-      
-      if (response && response.error) {
-        console.error('Error in getAddress response:', response.error);
+      if (publicKey) {
+        return publicKey;
       }
     }
     
@@ -202,10 +168,14 @@ export const getUserPublicKey = async (userInitiated: boolean = false): Promise<
         // @ts-ignore - Accessing window.freighter directly
         if (typeof window.freighter.getPublicKey === 'function') {
           // @ts-ignore
-          return await window.freighter.getPublicKey();
+          const directKey = await window.freighter.getPublicKey();
+          console.log('Got key directly from window.freighter:', directKey);
+          if (directKey) {
+            return directKey;
+          }
         }
       } catch (e) {
-        console.warn('Error in fallback getPublicKey:', e);
+        console.warn('Error getting key directly from window.freighter:', e);
       }
     }
     
@@ -236,19 +206,20 @@ export const getWalletNetwork = async (): Promise<string | null> => {
   try {
     // Get network details using getNetwork()
     if (typeof freighter.getNetwork === 'function') {
-      const networkDetails = await freighter.getNetwork();
-      console.log('Network details:', networkDetails);
+      const network = await freighter.getNetwork();
+      console.log('Network:', network);
       
-      if (networkDetails && networkDetails.networkPassphrase) {
-        return networkDetails.networkPassphrase;
+      // network is just a string in the current API
+      if (network) {
+        return network;
       }
     }
     
     // Fall back to getNetworkDetails() if needed
     if (typeof freighter.getNetworkDetails === 'function') {
       const backupDetails = await freighter.getNetworkDetails();
-      if (backupDetails && backupDetails.networkPassphrase) {
-        return backupDetails.networkPassphrase;
+      if (backupDetails && backupDetails.network) {
+        return backupDetails.network;
       }
     }
     
@@ -256,11 +227,11 @@ export const getWalletNetwork = async (): Promise<string | null> => {
     if (typeof window !== 'undefined' && window.freighter) {
       try {
         // @ts-ignore
-        if (typeof window.freighter.getNetworkDetails === 'function') {
+        if (typeof window.freighter.getNetwork === 'function') {
           // @ts-ignore
-          const details = await window.freighter.getNetworkDetails();
-          if (details && details.networkPassphrase) {
-            return details.networkPassphrase;
+          const networkDetails = await window.freighter.getNetwork();
+          if (networkDetails && networkDetails.network) {
+            return networkDetails.network;
           }
         }
       } catch (e) {
@@ -283,8 +254,9 @@ export const signWithWallet = async (xdr: string, networkPassphrase: string): Pr
     const result = await freighter.signTransaction(xdr, { networkPassphrase });
     console.log('Sign transaction result:', result);
     
-    if (result && result.signedTxXdr) {
-      return result.signedTxXdr;
+    // The result is the signed transaction XDR string directly
+    if (result) {
+      return result;
     }
     
     // Try direct window access as a fallback
@@ -294,8 +266,8 @@ export const signWithWallet = async (xdr: string, networkPassphrase: string): Pr
         if (typeof window.freighter.signTransaction === 'function') {
           // @ts-ignore
           const directResult = await window.freighter.signTransaction(xdr, { network: networkPassphrase });
-          if (directResult && directResult.signedTxXdr) {
-            return directResult.signedTxXdr;
+          if (directResult && directResult.signedXdr) {
+            return directResult.signedXdr;
           }
         }
       } catch (e) {
@@ -343,41 +315,16 @@ export const disconnectWallet = async (): Promise<boolean> => {
       }
     }
     
-    // Note: Freighter doesn't seem to have a proper disconnect API
+    // Note: Freighter doesn't have a proper disconnect API
     // Most wallet connections in Freighter are maintained by the app's state
     // For debugging, let's list what's available in the API
     if (typeof window !== 'undefined') {
       console.log('Available freighter API methods:', 
-        Object.keys(freighter).filter(key => typeof freighter[key] === 'function'));
+        Object.keys(freighter as Record<string, unknown>).filter(key => typeof (freighter as Record<string, unknown>)[key] === 'function'));
       
       if (window.freighter) {
         console.log('Available window.freighter methods:', 
-          Object.keys(window.freighter).filter(key => typeof window.freighter[key] === 'function'));
-      }
-    }
-    
-    // Try to use Freighter's disconnect function if available (for future compatibility)
-    if (typeof freighter.disconnect === 'function') {
-      console.log('Calling Freighter disconnect API...');
-      try {
-        await freighter.disconnect();
-        console.log('Successfully called disconnect API');
-      } catch (e) {
-        console.warn('Error calling freighter.disconnect:', e);
-      }
-    } 
-    
-    // Try direct window access as fallback
-    if (typeof window !== 'undefined' && window.freighter) {
-      try {
-        // @ts-ignore
-        if (typeof window.freighter.disconnect === 'function') {
-          // @ts-ignore
-          await window.freighter.disconnect();
-          console.log('Successfully called window.freighter.disconnect');
-        }
-      } catch (e) {
-        console.warn('Error calling window.freighter.disconnect:', e);
+          Object.keys(window.freighter).filter(key => typeof window.freighter?.[key as keyof typeof window.freighter] === 'function'));
       }
     }
     
@@ -402,11 +349,11 @@ declare global {
       isConnected: () => Promise<boolean>;
       getPublicKey: () => Promise<string>;
       getNetwork: () => Promise<{ network: string; networkPassphrase: string }>;
+      getNetworkDetails: () => Promise<{ network: string; networkPassphrase: string }>;
       signTransaction: (
         xdr: string,
         options?: { networkPassphrase?: string }
-      ) => Promise<{ signedTxXdr: string }>;
-      disconnect: () => Promise<void>;
+      ) => Promise<{ signedXdr: string }>;
     };
   }
 } 

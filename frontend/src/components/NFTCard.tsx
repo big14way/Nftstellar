@@ -35,8 +35,9 @@ const NFTCard = ({
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const formatPrice = (price: number) => {
-    return price.toLocaleString(undefined, {
+  const formatPrice = (price: string) => {
+    const numPrice = parseFloat(price);
+    return numPrice.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
     });

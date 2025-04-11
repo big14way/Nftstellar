@@ -3,7 +3,7 @@ import { ipfsService } from './ipfs.service';
 import { NFT_CONFIG } from '@/config/nft.config';
 import type { Server, TransactionBuilder, Operation, Asset } from 'stellar-sdk';
 import * as StellarSdk from 'stellar-sdk';
-import { BigNumber } from 'bignumber.js';
+import BigNumber from 'bignumber.js';
 
 interface NFTMetadata {
   name: string;
@@ -281,7 +281,7 @@ export class NFTService {
         console.log('Account loaded successfully');
         
         // Convert price from XLM to stroops (1 XLM = 10,000,000 stroops)
-        const priceInStroops = new BigNumber(price).times(10000000).toFixed(0);
+        const priceInStroops = (parseFloat(price) * 10000000).toFixed(0);
         console.log(`Price converted to ${priceInStroops} stroops`);
         
         // Create a data entry name with a consistent format: nft_HASHKEY_price

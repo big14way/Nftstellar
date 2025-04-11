@@ -93,7 +93,6 @@ export const connectWallet = async (): Promise<string | null> => {
  */
 export const disconnectWallet = async (): Promise<void> => {
   const kit = getWalletKit();
-  kit.stop();
   walletKitInstance = null;
 };
 

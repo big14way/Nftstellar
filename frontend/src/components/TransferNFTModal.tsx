@@ -50,7 +50,6 @@ const TransferNFTModal: React.FC<TransferNFTModalProps> = ({ nft, onClose, onSuc
       console.log('Attempting to transfer NFT with details:', {
         tokenId: nft.tokenId,
         id: nft.id,
-        transactionHash: nft.transactionHash,
         allProps: JSON.stringify(nft)
       });
 
@@ -80,9 +79,6 @@ const TransferNFTModal: React.FC<TransferNFTModalProps> = ({ nft, onClose, onSuc
         } else if (isCID(nft.id)) {
           console.log('Using ID instead of tokenId');
           idToUse = nft.id;
-        } else if (isCID(nft.transactionHash)) {
-          console.log('Using transactionHash instead of tokenId');
-          idToUse = nft.transactionHash;
         }
       }
       
@@ -103,8 +99,8 @@ const TransferNFTModal: React.FC<TransferNFTModalProps> = ({ nft, onClose, onSuc
     }
   };
 
-  // Get token identifier - use tokenId if available, otherwise use fallbacks
-  const tokenIdentifier = nft.tokenId || nft.transactionHash || nft.id || 'Unknown';
+  // Get token identifier - use tokenId if available, otherwise use id
+  const tokenIdentifier = nft.tokenId || nft.id || 'Unknown';
 
   return (
     <div className={styles.modalOverlay}>

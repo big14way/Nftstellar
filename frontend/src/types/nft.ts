@@ -9,6 +9,7 @@ export interface NFT {
   metadata: Record<string, any>;
   royaltyPercentage?: number;
   collection?: string;
+  price?: string;
   attributes?: Array<{
     trait_type: string;
     value: string | number;

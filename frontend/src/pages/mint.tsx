@@ -71,12 +71,7 @@ export default function MintPage() {
       <header className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">{config.appName} - Mint NFT</h1>
-          <WalletConnect 
-            publicKey={publicKey}
-            isConnected={isConnected}
-            isLoading={isLoading}
-            connect={connect}
-          />
+          <WalletConnect />
         </div>
       </header>
       
