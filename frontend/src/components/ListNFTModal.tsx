@@ -74,9 +74,6 @@ const ListNFTModal: React.FC<ListNFTModalProps> = ({ nft, onClose, onSuccess }) 
       if (result.success) {
         console.log('NFT listed successfully:', result);
         
-        // Update the NFT with price information
-        nft.price = price;
-        
         setStep('success');
         setProcessingStatus('NFT listed successfully!');
         // Wait a moment before closing to show success state
