@@ -31,8 +31,8 @@ const DelistNFTModal: React.FC<DelistNFTModalProps> = ({ nft, onClose, onSuccess
       setStep('processing');
       setProcessingStatus('Preparing to delist NFT...');
 
-      // Use tokenId if available, otherwise fall back to transactionHash or id
-      const nftTokenId = nft.tokenId || nft.transactionHash || nft.id;
+      // Use tokenId if available, otherwise fall back to id
+      const nftTokenId = nft.tokenId || nft.id;
       
       if (!nftTokenId) {
         throw new Error('Unable to find a valid identifier for this NFT');
@@ -100,9 +100,9 @@ const DelistNFTModal: React.FC<DelistNFTModalProps> = ({ nft, onClose, onSuccess
                   <span className={styles.tokenIdLabel}>ID:</span>
                   <span 
                     className={styles.tokenIdValue} 
-                    title={nft.tokenId || nft.transactionHash || nft.id || 'Unknown'}
+                    title={nft.tokenId || nft.id || 'Unknown'}
                   >
-                    {truncateString(nft.tokenId || nft.transactionHash || nft.id || 'Unknown', 16)}
+                    {truncateString(nft.tokenId || nft.id || 'Unknown', 16)}
                   </span>
                 </div>
               </div>
